@@ -3,23 +3,14 @@
 # dependencies
 node_modules/
 
-# Expo
-.expo/
-dist/
-web-build/
-expo-env.d.ts
-
-# Native
-.kotlin/
+# Native iOS (builds e derived data — o .xcodeproj é gerado por xcodegen)
+ios/build/
 *.orig.*
 *.jks
 *.p8
 *.p12
 *.key
 *.mobileprovision
-
-# Metro
-.metro-health-check*
 
 # debug
 npm-debug.*
@@ -31,11 +22,12 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
+backend/.env
 
 # typescript
 *.tsbuildinfo
 
-# generated native folders
-/ios
-/android
+# logs
+*.log

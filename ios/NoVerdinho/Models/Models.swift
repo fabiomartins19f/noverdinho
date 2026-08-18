@@ -1,0 +1,336 @@
+import Foundation
+import SwiftUI
+
+// MARK: - Tipos base
+
+enum DebtType: String, CaseIterable {
+    case creditCard = "Cartão de crédito"
+    case loan = "Empréstimo"
+    case financing = "Financiamento"
+    case installments = "Parcelamento"
+
+    var icon: String {
+        switch self {
+        case .creditCard: "creditcard.fill"
+        case .loan: "banknote.fill"
+        case .financing: "house.fill"
+        case .installments: "calendar.badge.clock"
+        }
+    }
+}
+
+enum DebtStatus {
+    case paidOff, onTime, overdue
+}
+
+enum DebtPriority: String {
+    case high = "Alta"
+    case medium = "Média"
+    case low = "Baixa"
+
+    var color: Color {
+        switch self {
+        case .high: Theme.danger
+        case .medium: Theme.warning
+        case .low: Theme.green
+        }
+    }
+}
+
+struct Debt: Identifiable {
+    let id = UUID()
+    let type: DebtType
+    let creditor: String
+    let originalAmount: Double
+    let paidAmount: Double
+    let remainingBalance: Double
+    let interestRate: Double
+    let installment: Double
+    let installmentCount: Int
+    let paidInstallments: Int
+    let dueDate: Date
+    let priority: DebtPriority
+    let status: DebtStatus
+
+    var progress: Double { originalAmount > 0 ? paidAmount / originalAmount : 0 }
+}
+
+struct CreditCard: Identifiable {
+    let id = UUID()
+    let name: String
+    let institution: String
+    let lastDigits: String
+    let limit: Double
+    let used: Double
+    let currentInvoice: Double
+    let dueDay: Int
+
+    var available: Double { limit - used }
+    var utilization: Double { limit > 0 ? used / limit : 0 }
+}
+
+struct CardPurchase: Identifiable {
+    let id = UUID()
+    let name: String
+    let amount: Double
+    let installments: Int
+    let paidInstallments: Int
+    let date: Date
+}
+
+struct Transaction: Identifiable {
+    enum Kind { case income, expense, transfer }
+    let id = UUID()
+    let kind: Kind
+    let name: String
+    let category: String
+    let amount: Double
+    let date: Date
+}
+
+struct UpcomingPayment: Identifiable {
+    let id = UUID()
+    let name: String
+    let amount: Double
+    let date: Date
+    let kind: PaymentKind
+
+    enum PaymentKind {
+        case bill, invoice, installment
+        var color: Color { self == .bill ? Theme.warning : Theme.info }
+        var icon: String {
+            switch self {
+            case .bill: "doc.text.fill"
+            case .invoice: "creditcard.fill"
+            case .installment: "calendar.fill"
+            }
+        }
+    }
+}
+
+struct BudgetCategory: Identifiable {
+    let id = UUID()
+    let name: String
+    let icon: String
+    let color: Color
+    let limit: Double
+    let spent: Double
+
+    var progress: Double { limit > 0 ? spent / limit : 0 }
+}
+
+struct Goal: Identifiable {
+    enum Kind { case debt, reserve, car, travel }
+    let id = UUID()
+    let kind: Kind
+    let title: String
+    let emoji: String
+    let target: Double
+    let saved: Double
+    let monthlyContribution: Double
+
+    var progress: Double { target > 0 ? saved / target : 0 }
+
+    var projectedMonths: Int {
+        guard monthlyContribution > 0 else { return 0 }
+        return Int(ceil((target - saved) / monthlyContribution))
+    }
+}
+
+struct InsightCard: Identifiable {
+    enum Tone { case positive, warning, action }
+    let id = UUID()
+    let title: String
+    let message: String
+    let action: String?
+    let tone: Tone
+}
+
+struct ReportRow: Identifiable {
+    let id = UUID()
+    let title: String
+    let values: [Double]
+    let color: Color
+    let prefix: String
+}
+
+struct MonthlySeriesPoint: Identifiable {
+    let id = UUID()
+    let label: String
+    let value: Double
+}
+
+struct CanISpendResult {
+    enum Verdict: String { case ok = "Compra compatível", caution = "Cuidado", notRecommended = "Não recomendado" }
+    let verdict: Verdict
+    let reason: String
+    let icon: String
+    var color: Color {
+        switch verdict {
+        case .ok: Theme.green
+        case .caution: Theme.warning
+        case .notRecommended: Theme.danger
+        }
+    }
+}
+
+// MARK: - Nível No Verdinho
+
+struct GreenLevel {
+    let score: Int
+    let delta: Int
+    let evolution: [MonthlySeriesPoint]
+    let message: String
+
+    var band: (title: String, color: Color) {
+        switch score {
+        case 0..<30: ("Sinal vermelho", Theme.danger)
+        case 30..<50: ("Atenção", Theme.warning)
+        case 50..<70: ("Evoluindo", Theme.warning)
+        case 70..<85: ("No caminho", Theme.green)
+        default: ("Verdinho", Theme.greenBright)
+        }
+    }
+}
+
+// MARK: - App State (mock)
+
+final class AppState: ObservableObject {
+    @Published var onboarded = false
+    @Published var showDiagnostic = false
+    @Published var showAddSheet = false
+    @Published var balance: Double = 3240
+    @Published var selectedTab: Tab = .home
+
+    let level = GreenLevel(
+        score: 72,
+        delta: 8,
+        evolution: [
+            .init(label: "Mar", value: 41), .init(label: "Abr", value: 46),
+            .init(label: "Mai", value: 49), .init(label: "Jun", value: 55),
+            .init(label: "Jul", value: 62), .init(label: "Ago", value: 72),
+        ],
+        message: "Você avançou 8 pontos este mês"
+    )
+
+    let transactions: [Transaction] = [
+        .init(kind: .income, name: "Salário", category: "Salário", amount: 7500, date: .now.addingTimeInterval(-86400 * 2)),
+        .init(kind: .expense, name: "Mercado", category: "Alimentação", amount: 486.90, date: .now.addingTimeInterval(-86400)),
+        .init(kind: .expense, name: "Aluguel", category: "Moradia", amount: 1800, date: .now.addingTimeInterval(-86400 * 3)),
+        .init(kind: .expense, name: "Academia", category: "Saúde", amount: 99.90, date: .now.addingTimeInterval(-86400 * 4)),
+        .init(kind: .expense, name: "Uber", category: "Transporte", amount: 38.40, date: .now.addingTimeInterval(-86400 * 5)),
+        .init(kind: .income, name: "Freelance", category: "Freelance", amount: 1200, date: .now.addingTimeInterval(-86400 * 6)),
+    ]
+
+    let debts: [Debt] = [
+        .init(type: .creditCard, creditor: "Cartão Nubank", originalAmount: 12000, paidAmount: 7150, remainingBalance: 4850,
+              interestRate: 240, installment: 360, installmentCount: 12, paidInstallments: 7,
+              dueDate: .now.addingTimeInterval(86400 * 9), priority: .high, status: .onTime),
+        .init(type: .loan, creditor: "Empréstimo Banco", originalAmount: 25000, paidAmount: 11200, remainingBalance: 13800,
+              interestRate: 72, installment: 780, installmentCount: 24, paidInstallments: 11,
+              dueDate: .now.addingTimeInterval(86400 * 15), priority: .medium, status: .onTime),
+        .init(type: .financing, creditor: "Financiamento Veículo", originalAmount: 48000, paidAmount: 46220, remainingBalance: 1780,
+              interestRate: 18, installment: 890, installmentCount: 48, paidInstallments: 46,
+              dueDate: .now.addingTimeInterval(86400 * 21), priority: .low, status: .onTime),
+        .init(type: .installments, creditor: "Parcelamento iPhone", originalAmount: 8600, paidAmount: 5600, remainingBalance: 3000,
+              interestRate: 0, installment: 500, installmentCount: 10, paidInstallments: 6,
+              dueDate: .now.addingTimeInterval(-86400 * 12), priority: .medium, status: .overdue),
+    ]
+
+    var totalDebt: Double { debts.reduce(0) { $0 + $1.remainingBalance } }
+
+    let cards: [CreditCard] = [
+        .init(name: "Nubank", institution: "Nu Pagamentos", lastDigits: "4821", limit: 8000, used: 3850,
+              currentInvoice: 1850, dueDay: 12),
+        .init(name: "Itaú", institution: "Banco Itaú", lastDigits: "9903", limit: 5000, used: 2650,
+              currentInvoice: 1150, dueDay: 5),
+        .init(name: "Amex", institution: "American Express", lastDigits: "1044", limit: 3000, used: 2850,
+              currentInvoice: 2850, dueDay: 18),
+    ]
+
+    let cardPurchases: [CardPurchase] = [
+        .init(name: "Passagem aérea", amount: 1840, installments: 6, paidInstallments: 2, date: .now.addingTimeInterval(-86400 * 40)),
+        .init(name: "Notebook", amount: 5200, installments: 10, paidInstallments: 4, date: .now.addingTimeInterval(-86400 * 90)),
+        .init(name: "Restaurante", amount: 340, installments: 1, paidInstallments: 1, date: .now.addingTimeInterval(-86400 * 12)),
+        .init(name: "Curso online", amount: 1200, installments: 3, paidInstallments: 1, date: .now.addingTimeInterval(-86400 * 25)),
+    ]
+
+    let upcomingPayments: [UpcomingPayment] = [
+        .init(name: "Fatura Nubank", amount: 1850, date: .now.addingTimeInterval(86400 * 4), kind: .invoice),
+        .init(name: "Aluguel", amount: 1800, date: .now.addingTimeInterval(86400 * 7), kind: .bill),
+        .init(name: "Parcela Cartão Nubank", amount: 360, date: .now.addingTimeInterval(86400 * 9), kind: .installment),
+        .init(name: "Parcela Empréstimo", amount: 780, date: .now.addingTimeInterval(86400 * 15), kind: .installment),
+    ]
+
+    let budget: [BudgetCategory] = [
+        .init(name: "Moradia", icon: "house.fill", color: Theme.warning, limit: 2200, spent: 1950),
+        .init(name: "Alimentação", icon: "cart.fill", color: Theme.green, limit: 1200, spent: 980),
+        .init(name: "Transporte", icon: "bus.fill", color: Theme.info, limit: 800, spent: 620),
+        .init(name: "Lazer", icon: "party.popper.fill", color: Theme.purple, limit: 700, spent: 920),
+        .init(name: "Saúde", icon: "heart.fill", color: Theme.danger, limit: 500, spent: 290),
+        .init(name: "Outros", icon: "ellipsis.circle.fill", color: Theme.textTertiary, limit: 600, spent: 420),
+    ]
+
+    let goals: [Goal] = [
+        .init(kind: .debt, title: "Quitar dívidas", emoji: "🎯", target: 18430, saved: 7420, monthlyContribution: 1200),
+        .init(kind: .reserve, title: "Reserva de emergência", emoji: "🏦", target: 18000, saved: 8600, monthlyContribution: 800),
+        .init(kind: .car, title: "Comprar carro", emoji: "🚗", target: 45000, saved: 12300, monthlyContribution: 1500),
+        .init(kind: .travel, title: "Viagem", emoji: "✈️", target: 8000, saved: 3400, monthlyContribution: 500),
+    ]
+
+    let insights: [InsightCard] = [
+        .init(title: "Alimentação em queda", message: "Você gastou 18% menos com alimentação este mês.", action: "Ver detalhes", tone: .positive),
+        .init(title: "Cartão pesado", message: "Seu cartão Nubank representa uma parcela elevada da sua renda.", action: "Ver cartão", tone: .warning),
+        .init(title: "Antecipe sua quitação", message: "Adicionar R$ 200 ao pagamento da dívida principal pode antecipar sua quitação em 5 meses.", action: "Ajustar plano", tone: .action),
+        .init(title: "Meta próxima", message: "Faltam R$ 4.600 para sua reserva de emergência.", action: "Ver metas", tone: .positive),
+    ]
+
+    let reports: [ReportRow] = [
+        .init(title: "Receitas", values: [6500, 6800, 6200, 7500, 7200, 8700], color: Theme.green, prefix: "Receitas"),
+        .init(title: "Despesas", values: [4200, 4600, 4100, 4500, 4400, 4260], color: Theme.danger, prefix: "Despesas"),
+        .init(title: "Evolução das dívidas", values: [28900, 26400, 24300, 22050, 19840, 18430], color: Theme.warning, prefix: "Dívidas"),
+        .init(title: "Economia mensal", values: [2300, 2200, 2100, 3000, 2800, 4440], color: Theme.greenBright, prefix: "Economia"),
+    ]
+
+    let reportLabels = ["Mar", "Abr", "Mai", "Jun", "Jul", "Ago"]
+
+    let expensesByCategory: [(name: String, value: Double, color: Color)] = [
+        ("Moradia", 1950, Theme.warning),
+        ("Alimentação", 980, Theme.green),
+        ("Lazer", 920, Theme.purple),
+        ("Transporte", 620, Theme.info),
+        ("Saúde", 290, Theme.danger),
+        ("Outros", 420, Theme.textTertiary),
+    ]
+
+    let profileSections: [(title: String, icon: String, items: [(String, String)])] = [
+        ("Preferências", "slider.horizontal.3", [("Aparência", "Escuro"), ("Moeda", "BRL"), ("Idioma", "Português")]),
+        ("Segurança", "lock.shield.fill", [("Face ID", "Ativado"), ("Mudar senha", ""), ("Notificações", "Ativado")]),
+        ("Dados", "externaldrive.fill", [("Exportar dados", ""), ("Categorias", "14"), ("Privacidade", "")]),
+        ("Conta", "person.crop.circle.fill", [("Sair", "")]),
+    ]
+
+    func canISpend(_ amount: Double) -> CanISpendResult {
+        switch amount {
+        case ..<300: .init(verdict: .ok, reason: "Você tem folga no orçamento e nenhum compromisso crítico nos próximos 30 dias.", icon: "checkmark.seal.fill")
+        case ..<800: .init(verdict: .caution, reason: "Você consegue pagar, mas fique atento: o limite recomendado de gasto livre é R$ 600 este mês.", icon: "exclamationmark.triangle.fill")
+        default: .init(verdict: .notRecommended, reason: "Esse valor ultrapassa seu limite recomendado de R$ 600 e pode atrasar sua meta de quitação.", icon: "xmark.seal.fill")
+        }
+    }
+}
+
+enum Tab: String, CaseIterable {
+    case home = "Início"
+    case debts = "Dívidas"
+    case planning = "Planejamento"
+    case profile = "Perfil"
+
+    var icon: String {
+        switch self {
+        case .home: "house.fill"
+        case .debts: "banknote.fill"
+        case .planning: "chart.bar.fill"
+        case .profile: "person.fill"
+        }
+    }
+}
