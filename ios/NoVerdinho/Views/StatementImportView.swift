@@ -19,6 +19,7 @@ struct StatementImportView: View {
     @State private var result: StatementParseResult?
     @State private var selectedCardName: String
     @State private var showImportConfirmation = false
+    @State private var importMessage = ""
 
     init(card: CreditCard) {
         self.card = card
@@ -48,7 +49,7 @@ struct StatementImportView: View {
         .alert("Extrato adicionado", isPresented: $showImportConfirmation) {
             Button("OK") { dismiss() }
         } message: {
-            Text("As compras reconhecidas foram adicionadas à fatura do \(selectedCardName).")
+            Text(importMessage)
         }
     }
 
@@ -68,7 +69,7 @@ struct StatementImportView: View {
     private var sourceTabs: some View {
         HStack(spacing: 8) {
             Button {
-                withAnimation { pastedText = ""; result = nil }
+                withAnimation { pastedText = ""; pdfFileName = nil; result = nil }
             } label: {
                 Label("Colar texto", systemImage: "doc.plaintext")
                     .font(Fonts.captionStrong())
@@ -226,9 +227,16 @@ struct StatementImportView: View {
         }
 
         PrimaryButton("Adicionar à fatura (\(selectedCardName))", icon: "plus") {
-            addStatementToCard(result)
+            importMessage = addStatementToCard(result)
+                ? "As compras reconhecidas foram adicionadas à fatura do \(selectedCardName)."
+                : "Nenhuma compra reconhecida no texto. Verifique se o extrato foi colado por completo."
             showImportConfirmation = true
         }
+
+        Text("Pagamentos, encargos e totais não são contados como compras.")
+            .font(Fonts.caption(12))
+            .foregroundStyle(Theme.textTertiary)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: Ações
@@ -241,7 +249,6 @@ struct StatementImportView: View {
         }
         result = parsed
     }
-
     private func handlePDFImport(_ result: Result<[URL], Error>) {
         switch result {
         case .failure(let error):
@@ -257,8 +264,10 @@ struct StatementImportView: View {
 
     /// Converte as linhas reconhecidas em compras da fatura do cartão e
     /// atualiza o valor usado/limite do cartão no AppState (mock).
-    private func addStatementToCard(_ result: StatementParseResult) {
-        guard let cardIndex = app.cards.firstIndex(where: { $0.name == selectedCardName }) else { return }
+    /// Retorna true quando ao menos uma compra foi adicionada.
+    @discardableResult
+    private func addStatementToCard(_ result: StatementParseResult) -> Bool {
+        guard let cardIndex = app.cards.firstIndex(where: { $0.name == selectedCardName }) else { return false }
 
         let purchases = result.lines
             .filter { !$0.isAdjustment }
@@ -273,8 +282,19 @@ struct StatementImportView: View {
                 )
             }
 
+        // Só adiciona quando há pelo menos uma compra reconhecida.
+        guard !purchases.isEmpty else {
+            return false
+        }
+
         var updated = app.cards[cardIndex]
         updated.statementItems.append(contentsOf: purchases)
+        let total = purchases.reduce(0) { $0 + $1.amount }
+        // O extrato representa o valor real da fatura/limite usado.
+        updated.currentInvoice += total
+        updated.used = min(updated.used + total, updated.limit)
         app.cards[cardIndex] = updated
+        Haptics.success()
+        return true
     }
 }

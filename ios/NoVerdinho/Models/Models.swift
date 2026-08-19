@@ -63,8 +63,8 @@ struct CreditCard: Identifiable, Codable {
     let institution: String
     let lastDigits: String
     let limit: Double
-    let used: Double
-    let currentInvoice: Double
+    var used: Double
+    var currentInvoice: Double
     let dueDay: Int
     var statementItems: [CardPurchase] = []
 
@@ -280,9 +280,9 @@ final class AppState: ObservableObject {
 
     @Published var onboarded = false { didSet { save() } }
     @Published var registered = false { didSet { save() } }
+    @Published var diagnosticDone = false { didSet { save() } }
     @Published var userName = "Usuário" { didSet { save() } }
     @Published var userEmail = "usuario@email.com" { didSet { save() } }
-    @Published var showDiagnostic = false
     @Published var showAddSheet = false
     @Published var addPreset: AddSheetType?
     @Published var balance: Double = 3240 { didSet { save() } }
@@ -302,16 +302,25 @@ final class AppState: ObservableObject {
 
     // MARK: Dados estáticos (demo)
 
-    let level = GreenLevel(
-        score: 72,
-        delta: 8,
-        evolution: [
-            .init(label: "Mar", value: 41), .init(label: "Abr", value: 46),
-            .init(label: "Mai", value: 49), .init(label: "Jun", value: 55),
-            .init(label: "Jul", value: 62), .init(label: "Ago", value: 72),
-        ],
-        message: "Você avançou 8 pontos este mês"
-    )
+    /// Pontuação do Nível No Verdinho (vem do diagnóstico e fica salva).
+    @Published var levelScore = 72 { didSet { save() } }
+
+    private static let levelEvolution: [MonthlySeriesPoint] = [
+        .init(label: "Mar", value: 41), .init(label: "Abr", value: 46),
+        .init(label: "Mai", value: 49), .init(label: "Jun", value: 55),
+        .init(label: "Jul", value: 62), .init(label: "Ago", value: 72),
+    ]
+
+    var level: GreenLevel {
+        GreenLevel(
+            score: levelScore,
+            delta: 8,
+            evolution: Self.levelEvolution,
+            message: levelScore >= 70
+                ? "Você avançou 8 pontos este mês"
+                : "Você está no caminho certo para o verdinho"
+        )
+    }
 
     static let defaultTransactions: [Transaction] = [
         .init(kind: .income, name: "Salário", category: "Salário", amount: 7500, date: .now.addingTimeInterval(-86400 * 2)),
@@ -421,6 +430,7 @@ final class AppState: ObservableObject {
     // MARK: Persistência (UserDefaults)
 
     /// Dados gravados localmente entre sessões do app.
+    /// O decode tolera campos ausentes (versões antigas salvas no aparelho).
     private struct PersistedState: Codable {
         var onboarded: Bool
         var registered: Bool
@@ -431,6 +441,39 @@ final class AppState: ObservableObject {
         var debts: [Debt]
         var cards: [CreditCard]
         var goals: [Goal]
+        var diagnosticDone: Bool
+        var levelScore: Int
+
+        init(onboarded: Bool, registered: Bool, userName: String, userEmail: String,
+             balance: Double, transactions: [Transaction], debts: [Debt],
+             cards: [CreditCard], goals: [Goal], diagnosticDone: Bool, levelScore: Int) {
+            self.onboarded = onboarded
+            self.registered = registered
+            self.userName = userName
+            self.userEmail = userEmail
+            self.balance = balance
+            self.transactions = transactions
+            self.debts = debts
+            self.cards = cards
+            self.goals = goals
+            self.diagnosticDone = diagnosticDone
+            self.levelScore = levelScore
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            onboarded = try c.decodeIfPresent(Bool.self, forKey: .onboarded) ?? false
+            registered = try c.decodeIfPresent(Bool.self, forKey: .registered) ?? false
+            userName = try c.decodeIfPresent(String.self, forKey: .userName) ?? "Usuário"
+            userEmail = try c.decodeIfPresent(String.self, forKey: .userEmail) ?? "usuario@email.com"
+            balance = try c.decodeIfPresent(Double.self, forKey: .balance) ?? 3240
+            transactions = try c.decodeIfPresent([Transaction].self, forKey: .transactions) ?? []
+            debts = try c.decodeIfPresent([Debt].self, forKey: .debts) ?? []
+            cards = try c.decodeIfPresent([CreditCard].self, forKey: .cards) ?? []
+            goals = try c.decodeIfPresent([Goal].self, forKey: .goals) ?? []
+            diagnosticDone = try c.decodeIfPresent(Bool.self, forKey: .diagnosticDone) ?? false
+            levelScore = try c.decodeIfPresent(Int.self, forKey: .levelScore) ?? 72
+        }
     }
 
     private func load() {
@@ -438,6 +481,8 @@ final class AppState: ObservableObject {
               let state = try? JSONDecoder().decode(PersistedState.self, from: data) else { return }
         onboarded = state.onboarded
         registered = state.registered
+        diagnosticDone = state.diagnosticDone
+        levelScore = state.levelScore
         userName = state.userName
         userEmail = state.userEmail
         balance = state.balance
@@ -457,7 +502,9 @@ final class AppState: ObservableObject {
             transactions: transactions,
             debts: debts,
             cards: cards,
-            goals: goals
+            goals: goals,
+            diagnosticDone: diagnosticDone,
+            levelScore: levelScore
         )
         if let data = try? JSONEncoder().encode(state) {
             UserDefaults.standard.set(data, forKey: Self.storageKey)
@@ -478,6 +525,8 @@ final class AppState: ObservableObject {
         UserDefaults.standard.removeObject(forKey: Self.storageKey)
         onboarded = false
         registered = false
+        diagnosticDone = false
+        levelScore = 72
         userName = "Usuário"
         userEmail = "usuario@email.com"
         balance = 3240

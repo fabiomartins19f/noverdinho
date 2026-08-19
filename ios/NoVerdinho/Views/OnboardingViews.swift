@@ -196,10 +196,12 @@ struct DiagnosticView: View {
                             .font(Fonts.captionStrong())
                             .foregroundStyle(Theme.textSecondary)
                         Spacer()
-                        Badge(text: "Evoluindo", color: Theme.warning)
+                        Badge(text: scoreBand.title, color: scoreBand.color)
                     }
-                    GreenLevelGauge(score: 64)
-                    Text("Você está no caminho certo, mas ainda existem pontos para melhorar.")
+                    GreenLevelGauge(score: computedScore)
+                    Text(computedScore >= 85
+                        ? "Parabéns! Sua saúde financeira está bem verde."
+                        : "Você está no caminho certo, mas ainda existem pontos para melhorar.")
                         .font(Fonts.body())
                         .foregroundStyle(Theme.textSecondary)
                         .multilineTextAlignment(.center)
@@ -207,17 +209,18 @@ struct DiagnosticView: View {
             }
 
             VStack(spacing: 10) {
-                IndicatorRow(icon: "arrow.up.forward.circle.fill", title: "Receitas", value: Money.format(Double(income) ?? 0), color: Theme.green)
-                IndicatorRow(icon: "arrow.down.right.circle.fill", title: "Despesas fixas", value: Money.format(Double(fixedExpenses) ?? 0), color: Theme.danger)
-                IndicatorRow(icon: "banknote.fill", title: "Dívidas", value: Money.format(Double(debtTotal) ?? 0), color: Theme.warning)
+                IndicatorRow(icon: "arrow.up.forward.circle.fill", title: "Receitas", value: Money.format(incomeValue), color: Theme.green)
+                IndicatorRow(icon: "arrow.down.right.circle.fill", title: "Despesas fixas", value: Money.format(expensesValue), color: Theme.danger)
+                IndicatorRow(icon: "banknote.fill", title: "Dívidas", value: Money.format(debtValue), color: Theme.warning)
                 IndicatorRow(icon: "creditcard.fill", title: "Cartões", value: "\(cardCount)", color: Theme.info)
-                IndicatorRow(icon: "calendar.badge.clock", title: "Guardar / pagar por mês", value: Money.format(Double(monthlySave) ?? 0), color: Theme.purple)
+                IndicatorRow(icon: "calendar.badge.clock", title: "Guardar / pagar por mês", value: Money.format(saveValue), color: Theme.purple)
             }
 
             Spacer()
 
             PrimaryButton("Entrar no No Verdinho", icon: "leaf.fill") {
-                withAnimation { app.showDiagnostic = false }
+                app.levelScore = computedScore
+                withAnimation { app.diagnosticDone = true }
             }
         }
     }
@@ -237,6 +240,34 @@ struct DiagnosticView: View {
         case 2: $debtTotal
         case 3: $cardCount
         default: $monthlySave
+        }
+    }
+
+    private var incomeValue: Double { Money.parse(income) ?? 0 }
+    private var expensesValue: Double { Money.parse(fixedExpenses) ?? 0 }
+    private var debtValue: Double { Money.parse(debtTotal) ?? 0 }
+    private var saveValue: Double { Money.parse(monthlySave) ?? 0 }
+
+    /// Escore simples a partir das respostas: base + poupança, ajustes por
+    /// despesas e dívidas. Limita o resultado entre 10 e 98.
+    private var computedScore: Int {
+        guard incomeValue > 0 else { return 45 }
+        var score = 45
+        score += Int((saveValue / incomeValue) * 100)
+        if expensesValue < incomeValue * 0.6 { score += 10 }
+        else if expensesValue < incomeValue * 0.8 { score += 5 }
+        if debtValue <= 0 { score += 10 }
+        score -= min(Int((expensesValue / incomeValue) * 30), 20)
+        return min(max(score, 10), 98)
+    }
+
+    private var scoreBand: (title: String, color: Color) {
+        switch computedScore {
+        case 0..<30: ("Sinal vermelho", Theme.danger)
+        case 30..<50: ("Atenção", Theme.warning)
+        case 50..<70: ("Evoluindo", Theme.warning)
+        case 70..<85: ("No caminho", Theme.green)
+        default: ("Verdinho", Theme.greenBright)
         }
     }
 }

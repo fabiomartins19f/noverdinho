@@ -21,6 +21,15 @@ struct DashboardView: View {
         }
     }
 
+    /// Variação do saldo nos últimos 7 dias (receitas − despesas).
+    private var weekDelta: Double {
+        let since = Calendar.current.date(byAdding: .day, value: -7, to: .now) ?? .now
+        let recent = app.transactions.filter { $0.date >= since }
+        let income = recent.filter { $0.kind == .income }.reduce(0) { $0 + $1.amount }
+        let expense = recent.filter { $0.kind == .expense }.reduce(0) { $0 + $1.amount }
+        return income - expense
+    }
+
     private var skeleton: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack {
@@ -76,12 +85,12 @@ struct DashboardView: View {
                             .font(Fonts.money(34))
                             .foregroundStyle(Theme.text)
                         HStack(spacing: 4) {
-                            Image(systemName: "arrow.down.left.circle.fill")
+                            Image(systemName: weekDelta >= 0 ? "arrow.down.left.circle.fill" : "arrow.up.right.circle.fill")
                                 .font(.system(size: 12))
-                            Text("R$ 486,90 esta semana")
+                            Text("\(weekDelta >= 0 ? "+" : "")\(Money.format(weekDelta)) esta semana")
                                 .font(Fonts.caption(12))
                         }
-                        .foregroundStyle(Theme.green)
+                        .foregroundStyle(weekDelta >= 0 ? Theme.green : Theme.danger)
                     }
                 }
 

@@ -115,7 +115,7 @@ struct ReportsView: View {
                     IndicatorRow(icon: "arrow.down.right.circle.fill", title: "Despesas", value: Money.format(4260), color: Theme.danger)
                     IndicatorRow(icon: "banknote.fill", title: "Dívidas", value: Money.format(app.totalDebt), color: Theme.warning)
                     IndicatorRow(icon: "leaf.fill", title: "Economia", value: Money.format(4440), color: Theme.greenBright)
-                    IndicatorRow(icon: "chart.line.uptrend.xyaxis", title: "Nível", value: "72/100", color: Theme.purple)
+                    IndicatorRow(icon: "chart.line.uptrend.xyaxis", title: "Nível", value: "\(app.level.score)/100", color: Theme.purple)
                 }
             }
         }
@@ -157,7 +157,8 @@ struct AddSheetView: View {
     private let categories = ["Alimentação", "Transporte", "Lazer", "Saúde", "Moradia", "Outros"]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
             HStack {
                 Text("O que você deseja adicionar?")
                     .font(Fonts.headline(18))
@@ -226,9 +227,11 @@ struct AddSheetView: View {
                 }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
+            }
+            .padding(20)
+            .padding(.bottom, 30)
         }
-        .padding(20)
-        .padding(.bottom, 30)
+        .scrollIndicators(.hidden)
         .background(
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .fill(Theme.surfaceElevated)
@@ -498,19 +501,7 @@ struct AddSheetView: View {
     /// Converte texto digitado em valor, aceitando "1250", "1250.50",
     /// "1.250,50" e "R$ 1.250,50".
     private func parseAmount(_ text: String) -> Double? {
-        let trimmed = text
-            .replacingOccurrences(of: "R$", with: "")
-            .trimmingCharacters(in: .whitespaces)
-        let normalized: String
-        if trimmed.contains(",") {
-            normalized = trimmed
-                .replacingOccurrences(of: ".", with: "")
-                .replacingOccurrences(of: ",", with: ".")
-        } else {
-            normalized = trimmed
-        }
-        guard let value = Double(normalized), value > 0 else { return nil }
-        return value
+        Money.parse(text)
     }
 }
 
@@ -542,7 +533,7 @@ struct ProfileView: View {
                         HStack(spacing: 4) {
                             Image(systemName: "leaf.fill")
                                 .font(.system(size: 10))
-                            Text("Nível 72 — No caminho")
+                            Text("Nível \(app.level.score) — \(app.level.band.title)")
                                 .font(Fonts.caption(12))
                         }
                         .foregroundStyle(Theme.green)

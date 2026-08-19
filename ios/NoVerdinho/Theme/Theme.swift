@@ -76,6 +76,24 @@ enum Money {
         return formatter.string(from: NSNumber(value: value)) ?? "R$ 0,00"
     }
 
+    /// Converte texto digitado em valor, aceitando "1250", "1250.50",
+    /// "1.250,50" e "R$ 1.250,50". Retorna nil para texto vazio ou inválido.
+    static func parse(_ text: String) -> Double? {
+        let trimmed = text
+            .replacingOccurrences(of: "R$", with: "")
+            .trimmingCharacters(in: .whitespaces)
+        let normalized: String
+        if trimmed.contains(",") {
+            normalized = trimmed
+                .replacingOccurrences(of: ".", with: "")
+                .replacingOccurrences(of: ",", with: ".")
+        } else {
+            normalized = trimmed
+        }
+        guard let value = Double(normalized), value > 0 else { return nil }
+        return value
+    }
+
     static func formatCompact(_ value: Double) -> String {
         let absValue = abs(value)
         if absValue >= 1000 {

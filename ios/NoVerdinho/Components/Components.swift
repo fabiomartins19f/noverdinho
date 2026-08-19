@@ -196,7 +196,7 @@ struct CurrencyField: View {
                 .font(Fonts.bodyMedium())
                 .foregroundStyle(Theme.green)
             TextField(placeholder, text: $value)
-                .keyboardType(.numberPad)
+                .keyboardType(.decimalPad)
                 .font(Fonts.bodyMedium())
                 .foregroundStyle(Theme.text)
         }

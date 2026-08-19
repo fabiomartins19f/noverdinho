@@ -16,13 +16,11 @@ struct RootTabView: View {
                 }
             }
 
-            if !app.showDiagnostic {
-                CustomTabBar(selected: $app.selectedTab) {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
-                        // "+" abre o bottom sheet de adicionar (receita, despesa,
-                        // dívida, cartão ou meta).
-                        app.showAddSheet = true
-                    }
+            CustomTabBar(selected: $app.selectedTab) {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                    // "+" abre o bottom sheet de adicionar (receita, despesa,
+                    // dívida, cartão ou meta).
+                    app.showAddSheet = true
                 }
             }
         }
@@ -123,7 +121,7 @@ struct NoVerdinhoApp: App {
                     OnboardingView()
                 } else if !app.registered {
                     RegisterView()
-                } else if app.showDiagnostic {
+                } else if !app.diagnosticDone {
                     DiagnosticView()
                 } else {
                     ZStack {
