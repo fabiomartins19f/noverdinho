@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - TELA 01: Onboarding
+// MARK: - TELA 01: Onboarding (boas-vindas)
 
 struct OnboardingView: View {
     @EnvironmentObject var app: AppState
@@ -33,7 +33,7 @@ struct OnboardingView: View {
                 .font(.system(size: 64, weight: .light))
                 .foregroundStyle(Theme.green)
                 .frame(width: 140, height: 140)
-                .background(Theme.greenSoft())
+                .background(Theme.soft(Theme.green))
                 .clipShape(Circle())
 
             Text("Entenda sua situação, organize suas dívidas e crie seu plano para chegar no verdinho.")
@@ -70,9 +70,16 @@ struct DiagnosticView: View {
 
     private let totalSteps = 5
 
+    private let questions = [
+        "Quanto você recebe por mês?",
+        "Quanto possui em despesas fixas?",
+        "Quanto possui em dívidas?",
+        "Quantos cartões utiliza?",
+        "Quanto consegue guardar ou pagar por mês?",
+    ]
+
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
-            // Barra de progresso
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text("Diagnóstico financeiro")
@@ -89,6 +96,7 @@ struct DiagnosticView: View {
 
             if finished {
                 diagnosticResult
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
             } else {
                 questionView
                     .transition(.move(edge: .trailing).combined(with: .opacity))
@@ -169,7 +177,7 @@ struct DiagnosticView: View {
                         Spacer()
                         Badge(text: scoreBand.title, color: scoreBand.color)
                     }
-                    GreenLevelGauge(score: computedScore)
+                    VerdinhoScore(score: computedScore)
                     Text(computedScore >= 85
                         ? "Parabéns! Sua saúde financeira está bem verde."
                         : "Você está no caminho certo, mas ainda existem pontos para melhorar.")
@@ -180,8 +188,8 @@ struct DiagnosticView: View {
             }
 
             VStack(spacing: 10) {
-                IndicatorRow(icon: "arrow.up.forward.circle.fill", title: "Receitas", value: Money.format(incomeValue), color: Theme.green)
-                IndicatorRow(icon: "arrow.down.right.circle.fill", title: "Despesas fixas", value: Money.format(expensesValue), color: Theme.danger)
+                IndicatorRow(icon: "arrow.down.left.circle.fill", title: "Receitas", value: Money.format(incomeValue), color: Theme.green)
+                IndicatorRow(icon: "arrow.up.right.circle.fill", title: "Despesas fixas", value: Money.format(expensesValue), color: Theme.danger)
                 IndicatorRow(icon: "banknote.fill", title: "Dívidas", value: Money.format(debtValue), color: Theme.warning)
                 IndicatorRow(icon: "creditcard.fill", title: "Cartões", value: "\(cardCount)", color: Theme.info)
                 IndicatorRow(icon: "calendar.badge.clock", title: "Guardar / pagar por mês", value: Money.format(saveValue), color: Theme.purple)
@@ -195,14 +203,6 @@ struct DiagnosticView: View {
             }
         }
     }
-
-    private let questions = [
-        "Quanto você recebe por mês?",
-        "Quanto possui em despesas fixas?",
-        "Quanto possui em dívidas?",
-        "Quantos cartões utiliza?",
-        "Quanto consegue guardar ou pagar por mês?",
-    ]
 
     private var currentBinding: Binding<String> {
         switch step {
@@ -219,8 +219,8 @@ struct DiagnosticView: View {
     private var debtValue: Double { Money.parse(debtTotal) ?? 0 }
     private var saveValue: Double { Money.parse(monthlySave) ?? 0 }
 
-    /// Escore simples a partir das respostas: base + poupança, ajustes por
-    /// despesas e dívidas. Limita o resultado entre 10 e 98.
+    /// Escore a partir das respostas: base + poupança, ajustes por despesas
+    /// e dívidas. Limitado entre 10 e 98.
     private var computedScore: Int {
         guard incomeValue > 0 else { return 45 }
         var score = 45

@@ -1,302 +1,319 @@
 import SwiftUI
 
-// MARK: - TELA 07: Cartões (central + detalhe)
+// MARK: - TELA: Cartões
 
 struct CardsView: View {
     @EnvironmentObject var app: AppState
+    @State private var showAddCard = false
+
+    private var totalLimit: Double { app.cards.reduce(0) { $0 + $1.limit } }
+    private var totalUsed: Double { app.cards.reduce(0) { $0 + $1.used } }
+    private var totalUtilization: Double { totalLimit > 0 ? totalUsed / totalLimit : 0 }
 
     var body: some View {
         ScreenScroll {
             VStack(alignment: .leading, spacing: 18) {
+                AppCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("Limite total")
+                                .font(Fonts.caption(12))
+                                .foregroundStyle(Theme.textTertiary)
+                                .textCase(.uppercase)
+                            Spacer()
+                            Badge(text: totalUtilization > 0.8 ? "Alto uso" : "Sob controle",
+                                  color: totalUtilization > 0.8 ? Theme.danger : Theme.green)
+                        }
+                        Text("\(Money.format(totalUsed)) / \(Money.format(totalLimit))")
+                            .font(Fonts.headline(22))
+                            .foregroundStyle(Theme.text)
+                        ProgressBar(progress: totalUtilization, color: Theme.green, height: 8)
+                        Text("\(Int(totalUtilization * 100))% do limite utilizado")
+                            .font(Fonts.caption(12))
+                            .foregroundStyle(Theme.textSecondary)
+                    }
+                }
+
                 if app.cards.isEmpty {
                     EmptyState(
-                        icon: "creditcard.fill",
+                        icon: "creditcard",
                         title: "Nenhum cartão",
-                        message: "Adicione seu primeiro cartão para acompanhar faturas e importar extratos."
+                        message: "Adicione seus cartões para acompanhar faturas e limites."
                     )
-                    PrimaryButton("Adicionar cartão", icon: "plus") {
-                        app.addPreset = .card
-                        app.showAddSheet = true
-                    }
                 }
 
                 ForEach(app.cards) { card in
                     NavigationLink {
                         CardDetailView(card: card)
                     } label: {
-                        CardVisualView(card: card)
+                        CardVisual(card: card)
                     }
                     .buttonStyle(.plain)
+                }
+
+                SecondaryButton("Adicionar cartão", icon: "plus") {
+                    showAddCard = true
                 }
             }
         }
         .navigationTitle("Cartões")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showAddCard) {
+            AddCardSheet()
+                .environmentObject(app)
+                .presentationDetents([.height(420)])
+        }
     }
 }
 
-struct CardVisualView: View {
+// MARK: - Visual do cartão
+
+struct CardVisual: View {
     let card: CreditCard
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(card.name)
-                        .font(Fonts.bodyMedium())
-                        .foregroundStyle(Theme.text)
-                    Text(card.institution)
-                        .font(Fonts.caption(12))
-                        .foregroundStyle(Theme.textSecondary)
-                }
-                Spacer()
-                // Selo com a cor de marca do cartão (estilo Nubank)
-                Image(systemName: "creditcard.fill")
-                    .font(.system(size: 22))
-                    .foregroundStyle(card.brandColor)
-            }
+        ZStack(alignment: .bottomLeading) {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(card.brandGradient)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .stroke(.white.opacity(0.18), lineWidth: 1)
+                )
+                .shadow(color: card.brandColor.opacity(0.35), radius: 14, y: 8)
 
-            HStack {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Fatura atual")
-                        .font(Fonts.caption(12))
-                        .foregroundStyle(Theme.textSecondary)
-                    Text(Money.format(card.currentInvoice))
-                        .font(Fonts.headline(20))
-                        .foregroundStyle(Theme.text)
-                }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 3) {
-                    Text("Vence dia \(card.dueDay)")
-                        .font(Fonts.caption(12))
-                        .foregroundStyle(Theme.textSecondary)
-                    Text("•••• \(card.lastDigits)")
-                        .font(Fonts.caption(12))
-                        .foregroundStyle(Theme.textTertiary)
-                }
-            }
+            Circle()
+                .fill(.white.opacity(0.08))
+                .frame(width: 220, height: 220)
+                .offset(x: 190, y: 90)
+            Circle()
+                .fill(.white.opacity(0.06))
+                .frame(width: 140, height: 140)
+                .offset(x: 230, y: -20)
 
-            // Barra de limite no estilo Nubank: larga, arredondada e com o
-            // gradiente da cor da marca do cartão.
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text("Limite comprometido")
-                        .font(Fonts.caption(12))
-                        .foregroundStyle(Theme.textSecondary)
+                    Text(card.name.uppercased())
+                        .font(.system(size: 16, weight: .heavy, design: .rounded))
+                        .foregroundStyle(.white)
                     Spacer()
-                    Text("\(Int(card.utilization * 100))%")
-                        .font(Fonts.captionStrong(12))
-                        .foregroundStyle(card.utilization > 0.8 ? Theme.danger : card.brandColor)
+                    Text("NV")
+                        .font(.system(size: 13, weight: .black, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.9))
                 }
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(Theme.surfaceAlt)
-                        Capsule()
-                            .fill(card.brandGradient)
-                            .frame(width: max(0, min(1, card.utilization)) * geo.size.width)
+                Text("•••• •••• •••• \(card.lastDigits)")
+                    .font(.system(size: 15, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .padding(.top, 10)
+                HStack(alignment: .bottom) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("FATURA ATUAL")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.7))
+                        Text(Money.format(card.currentInvoice))
+                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                    }
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 1) {
+                        Text("DISPONÍVEL")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.7))
+                        Text(Money.format(card.available))
+                            .font(.system(size: 15, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.92))
                     }
                 }
-                .frame(height: 10)
-                HStack {
-                    Text("\(Money.format(card.used)) de \(Money.format(card.limit))")
-                        .font(Fonts.caption(12))
-                        .foregroundStyle(Theme.textSecondary)
-                    Spacer()
-                    Text("Disponível \(Money.format(card.available))")
-                        .font(Fonts.caption(12))
-                        .foregroundStyle(card.brandColor)
-                }
+                .padding(.top, 14)
             }
+            .padding(20)
         }
-        .padding(16)
-        .background(
-            LinearGradient(colors: [Theme.surfaceElevated, Theme.surface],
-                           startPoint: .topLeading, endPoint: .bottomTrailing)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Theme.border, lineWidth: 1)
-        )
+        .frame(height: 190)
     }
 }
 
+// MARK: - TELA: Detalhe do cartão
+
 struct CardDetailView: View {
-    let card: CreditCard
     @EnvironmentObject var app: AppState
-    @Environment(\.dismiss) private var dismiss
-    @State private var confirmDelete = false
-
-    /// Versão "viva" do cartão: busca sempre a cópia atual no AppState,
-    /// para refletir compras recém-importadas e edições.
-    private var liveCard: CreditCard {
-        app.cards.first { $0.id == card.id } ?? card
-    }
-
-    private var allPurchases: [CardPurchase] {
-        // Compras do cartão: manuais (mock) + vindas do extrato importado.
-        liveCard.statementItems
-    }
-
-    /// Valor das próximas 3 faturas, calculado das parcelas ainda em aberto.
-    private var upcomingInvoices: [Double] {
-        (1...3).map { month in
-            allPurchases
-                .filter { $0.installments > $0.paidInstallments && $0.installments - $0.paidInstallments >= month }
-                .reduce(0) { $0 + $1.amount / Double($1.installments) }
-        }
-    }
+    let card: CreditCard
 
     var body: some View {
         ScreenScroll {
             VStack(alignment: .leading, spacing: 18) {
-                CardVisualView(card: liveCard)
-
                 AppCard {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Fatura atual")
-                            .font(Fonts.captionStrong())
-                            .foregroundStyle(Theme.textSecondary)
-                        Text(Money.format(liveCard.currentInvoice))
-                            .font(Fonts.money(28))
-                            .foregroundStyle(Theme.text)
-                        Text("Vence dia \(liveCard.dueDay)")
-                            .font(Fonts.caption())
-                            .foregroundStyle(Theme.textSecondary)
-                    }
-                }
-
-                // Importação de extrato da fatura
-                NavigationLink {
-                    StatementImportView(card: liveCard)
-                } label: {
-                    AppCard {
-                        HStack(spacing: 12) {
-                            Image(systemName: "doc.badge.plus")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundStyle(liveCard.brandColor)
-                                .frame(width: 38, height: 38)
-                                .background(liveCard.brandColor.opacity(0.12))
-                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Importar extrato da fatura")
-                                    .font(Fonts.bodyMedium())
-                                    .foregroundStyle(Theme.text)
-                                Text("Cole o texto ou importe o PDF — reconhecemos as compras")
-                                    .font(Fonts.caption(12))
-                                    .foregroundStyle(Theme.textSecondary)
-                            }
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack {
+                            SectionTitle("Fatura atual")
                             Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(Theme.textTertiary)
+                            Badge(text: card.currentInvoice > 0 ? "Aberta" : "Fechada",
+                                  color: card.currentInvoice > 0 ? Theme.warning : Theme.green)
                         }
+                        Text(Money.format(card.currentInvoice))
+                            .font(Fonts.money(32))
+                            .foregroundStyle(Theme.text)
+                        HStack {
+                            Text("Vence \(app.invoiceDate(day: card.dueDay).formatted(.dateTime.day().month()))")
+                                .font(Fonts.caption(12))
+                                .foregroundStyle(Theme.textSecondary)
+                            Spacer()
+                            Text("Limite \(Money.format(card.limit))")
+                                .font(Fonts.caption(12))
+                                .foregroundStyle(Theme.textSecondary)
+                        }
+                        ProgressBar(progress: card.utilization, color: card.utilization > 0.8 ? Theme.danger : Theme.green, height: 8)
+                        Text("\(Int(card.utilization * 100))% do limite · \(Money.format(card.available)) disponíveis")
+                            .font(Fonts.caption(12))
+                            .foregroundStyle(Theme.textSecondary)
                     }
                 }
-                .buttonStyle(.plain)
 
-                SectionTitle("Compras e parcelamentos")
-
-                if allPurchases.isEmpty {
+                if card.statementItems.isEmpty {
                     EmptyState(
-                        icon: "bag",
+                        icon: "cart",
                         title: "Nenhuma compra",
-                        message: "As compras da fatura aparecerão aqui. Importe o extrato para começar."
+                        message: "Importe seu extrato para ver as compras desta fatura."
                     )
                 }
 
-                ForEach(allPurchases) { purchase in
+                ForEach(card.statementItems.sorted { $0.date > $1.date }) { purchase in
                     AppCard {
-                        HStack(spacing: 12) {
-                            // Ícone na cor da marca quando veio do extrato
-                            Image(systemName: purchase.fromStatement ? "doc.text.magnifyingglass" : "bag.fill")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(purchase.fromStatement ? liveCard.brandColor : Theme.textSecondary)
-                                .frame(width: 36, height: 36)
-                                .background(purchase.fromStatement ? liveCard.brandColor.opacity(0.12) : Theme.surfaceAlt)
-                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                            VStack(alignment: .leading, spacing: 3) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack {
                                 Text(purchase.name)
                                     .font(Fonts.bodyMedium())
                                     .foregroundStyle(Theme.text)
-                                HStack(spacing: 6) {
-                                    Text(purchase.installments > 1
-                                        ? "\(purchase.paidInstallments)x de \(purchase.installments)x"
-                                        : purchase.fromStatement ? "Extrato" : "À vista")
+                                Spacer()
+                                Text(Money.format(purchase.amount))
+                                    .font(Fonts.captionStrong())
+                                    .foregroundStyle(Theme.text)
+                            }
+                            HStack(spacing: 6) {
+                                Text(purchase.date.formatted(.dateTime.day().month().year()))
+                                    .font(Fonts.caption(12))
+                                    .foregroundStyle(Theme.textTertiary)
+                                if purchase.installments > 1 {
+                                    Text("·")
                                         .font(Fonts.caption(12))
-                                        .foregroundStyle(purchase.fromStatement ? liveCard.brandColor : Theme.textSecondary)
-                                    Text(purchase.date.formatted(.dateTime.day().month()))
+                                        .foregroundStyle(Theme.textTertiary)
+                                    Text("\(purchase.paidInstallments)/\(purchase.installments) parcelas")
                                         .font(Fonts.caption(12))
                                         .foregroundStyle(Theme.textTertiary)
                                 }
+                                Spacer()
                                 if purchase.installments > 1 {
                                     ProgressBar(progress: Double(purchase.paidInstallments) / Double(purchase.installments),
-                                                color: Theme.info, height: 5)
-                                        .padding(.top, 4)
+                                                color: Theme.green, height: 4)
+                                        .frame(width: 70)
                                 }
                             }
-                            Spacer()
-                            Text(Money.format(purchase.amount))
-                                .font(Fonts.captionStrong())
-                                .foregroundStyle(Theme.text)
                         }
                     }
                 }
 
-                SectionTitle("Próximas faturas")
-                AppCard {
-                    VStack(spacing: 12) {
-                        ForEach(Array(upcomingInvoices.enumerated()), id: \.offset) { index, value in
-                            HStack {
-                                Text("Mês \(index + 2) • dia \(liveCard.dueDay)")
-                                    .font(Fonts.caption())
-                                    .foregroundStyle(Theme.textSecondary)
-                                Spacer()
-                                Text(value > 0 ? Money.format(value) : "—")
-                                    .font(Fonts.captionStrong())
-                                    .foregroundStyle(value > 0 ? Theme.text : Theme.textTertiary)
+                if card.statementItems.contains(where: { $0.installments > $0.paidInstallments }) {
+                    AppCard {
+                        VStack(alignment: .leading, spacing: 12) {
+                            SectionTitle("Próximas faturas")
+                            ForEach(nextInvoiceItems) { row in
+                                IndicatorRow(icon: "creditcard.fill", title: row.name,
+                                             value: Money.format(row.value), color: Theme.info)
                             }
-                        }
-                        if upcomingInvoices.allSatisfy({ $0 == 0 }) {
-                            Text("Sem parcelamentos em aberto — suas faturas futuras estão zeradas.")
-                                .font(Fonts.caption(12))
-                                .foregroundStyle(Theme.textTertiary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
                 }
             }
         }
-        .navigationTitle(liveCard.name)
+        .navigationTitle(card.name)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    confirmDelete = true
-                } label: {
-                    Image(systemName: "trash")
-                        .foregroundStyle(Theme.danger)
-                }
-                .accessibilityLabel("Remover cartão")
+    }
+
+    /// Parcelas restantes consolidadas por compra.
+    private var nextInvoiceRows: [(name: String, value: Double)] {
+        card.statementItems
+            .filter { $0.installments > $0.paidInstallments }
+            .map { purchase in
+                let remaining = Double(purchase.installments - purchase.paidInstallments)
+                let monthly = purchase.amount / Double(purchase.installments)
+                return (purchase.name, monthly * remaining)
             }
-        }
-        .confirmationDialog(
-            "Remover o cartão \(liveCard.name)?",
-            isPresented: $confirmDelete,
-            titleVisibility: .visible
-        ) {
-            Button("Remover cartão", role: .destructive) {
-                removeCard()
-            }
-            Button("Cancelar", role: .cancel) {}
-        } message: {
-            Text("As compras importadas deste cartão também serão removidas.")
+    }
+
+    /// Parcelas restantes consolidadas por compra (com id estável).
+    private var nextInvoiceItems: [NextInvoiceItem] {
+        nextInvoiceRows.enumerated().map { index, row in
+            NextInvoiceItem(id: index, name: row.name, value: row.value)
         }
     }
 
-    private func removeCard() {
-        Haptics.light()
-        app.cards.removeAll { $0.id == card.id }
-        dismiss()
+    private struct NextInvoiceItem: Identifiable {
+        let id: Int
+        let name: String
+        let value: Double
+    }
+}
+
+// MARK: - Sheet: adicionar cartão
+
+struct AddCardSheet: View {
+    @EnvironmentObject var app: AppState
+    @Environment(\.dismiss) private var dismiss
+    /// Quando usado dentro do modal "+", substitui o dismiss nativo.
+    var onClose: (() -> Void)?
+    @State private var name = ""
+    @State private var institution = ""
+    @State private var limit = ""
+    @State private var dueDay = 10
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("Adicionar cartão")
+                .font(Fonts.headline(20))
+                .foregroundStyle(Theme.text)
+
+            FormField("Nome do cartão", text: $name, icon: "creditcard.fill")
+            FormField("Instituição", text: $institution, icon: "building.columns.fill")
+            CurrencyField(value: $limit, placeholder: "Limite do cartão")
+
+            HStack {
+                Text("Vencimento")
+                    .font(Fonts.body())
+                    .foregroundStyle(Theme.text)
+                Spacer()
+                Picker("Dia", selection: $dueDay) {
+                    ForEach(1...28, id: \.self) { day in
+                        Text("\(day)").tag(day)
+                    }
+                }
+                .pickerStyle(.menu)
+                .tint(Theme.green)
+            }
+            .padding(12)
+            .background(Theme.surfaceAlt)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+            Spacer()
+
+            PrimaryButton("Adicionar", icon: "plus") {
+                let card = CreditCard(
+                    name: name.trimmingCharacters(in: .whitespaces),
+                    institution: institution.trimmingCharacters(in: .whitespaces),
+                    lastDigits: "0000",
+                    limit: Money.parse(limit) ?? 0,
+                    used: 0,
+                    currentInvoice: 0,
+                    dueDay: dueDay
+                )
+                app.cards.append(card)
+                Haptics.success()
+                if let onClose {
+                    onClose()
+                } else {
+                    dismiss()
+                }
+            }
+            .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || (Money.parse(limit) ?? 0) <= 0)
+            .opacity(name.isEmpty ? 0.5 : 1)
+        }
+        .padding(24)
     }
 }

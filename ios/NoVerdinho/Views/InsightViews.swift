@@ -1,144 +1,204 @@
 import SwiftUI
 
-// MARK: - TELA 10: Posso Gastar?
+// MARK: - TELA: Posso gastar?
 
 struct CanISpendView: View {
     @EnvironmentObject var app: AppState
     @State private var amount = ""
     @State private var result: CanISpendResult?
-    @State private var inputError: String?
+
+    private var freeLimit: Double { 600 }
 
     var body: some View {
         ScreenScroll {
-            VStack(alignment: .leading, spacing: 20) {
-                Text("Quer saber se dá para gastar?")
-                    .font(Fonts.title(24))
-                    .foregroundStyle(Theme.text)
-                Text("Informe o valor e o No Verdinho analisa saldo, compromissos, dívidas, orçamento, cartões e metas.")
-                    .font(Fonts.body())
-                    .foregroundStyle(Theme.textSecondary)
-
+            VStack(alignment: .leading, spacing: 18) {
                 AppCard {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Quanto você quer gastar?")
-                            .font(Fonts.bodyMedium())
-                            .foregroundStyle(Theme.text)
-                        CurrencyField(value: $amount, placeholder: "500")
-                        if let inputError {
-                            Text(inputError)
-                                .font(Fonts.caption())
-                                .foregroundStyle(Theme.danger)
+                    VStack(alignment: .leading, spacing: 14) {
+                        SectionTitle("Posso gastar?")
+                        Text("Descubra se esse gasto cabe no seu mês sem atrapalhar suas metas.")
+                            .font(Fonts.caption())
+                            .foregroundStyle(Theme.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        CurrencyField(value: $amount, placeholder: "Valor do gasto")
+                        PrimaryButton("Analisar", icon: "magnifyingglass") {
+                            result = app.canISpend(Money.parse(amount) ?? 0)
                         }
+                        .disabled((Money.parse(amount) ?? 0) <= 0)
+                        .opacity((Money.parse(amount) ?? 0) > 0 ? 1 : 0.5)
                     }
-                }
-
-                PrimaryButton("Analisar", icon: "sparkles") {
-                    guard let value = Money.parse(amount) else {
-                        inputError = "Informe um valor válido (ex.: 500 ou 1.250,50)."
-                        Haptics.light()
-                        return
-                    }
-                    inputError = nil
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                        result = app.canISpend(value)
-                    }
-                }
-                .onChange(of: amount) {
-                    // Nova análise a cada edição: esconde o resultado anterior.
-                    result = nil
                 }
 
                 if let result {
-                    AppCard {
-                        VStack(spacing: 14) {
-                            Image(systemName: result.icon)
-                                .font(.system(size: 44, weight: .light))
-                                .foregroundStyle(result.color)
-                            Text(result.verdict.rawValue)
-                                .font(Fonts.headline(20))
-                                .foregroundStyle(result.color)
-                            Text(result.reason)
-                                .font(Fonts.body())
-                                .foregroundStyle(Theme.textSecondary)
-                                .multilineTextAlignment(.center)
-                            Text("Análise de \(Money.format(Money.parse(amount) ?? 0))")
-                                .font(Fonts.caption())
-                                .foregroundStyle(Theme.textTertiary)
+                    analysisCard(result)
+                }
+
+                AppCard {
+                    VStack(alignment: .leading, spacing: 10) {
+                        SectionTitle("Como calculamos")
+                        VStack(spacing: 8) {
+                            IndicatorRow(icon: "arrow.down.left.circle.fill", title: "Saldo disponível",
+                                         value: Money.format(app.balance), color: Theme.green)
+                            IndicatorRow(icon: "shippingbox.fill", title: "Compromissos deste mês",
+                                         value: Money.format(monthlyCommitments), color: Theme.warning)
+                            IndicatorRow(icon: "banknote.fill", title: "Dívidas em aberto",
+                                         value: Money.format(app.totalDebt), color: Theme.danger)
+                            IndicatorRow(icon: "target", title: "Limite de gasto livre",
+                                         value: Money.format(freeLimit), color: Theme.greenBright)
                         }
-                        .frame(maxWidth: .infinity)
                     }
-                    .transition(.scale.combined(with: .opacity))
                 }
             }
         }
         .navigationTitle("Posso gastar?")
         .navigationBarTitleDisplayMode(.inline)
     }
+
+    private var monthlyCommitments: Double {
+        let installments = app.debts
+            .filter { $0.status != .paidOff }
+            .reduce(0) { $0 + $1.installment }
+        let invoices = app.cards.reduce(0) { $0 + $1.currentInvoice }
+        return installments + invoices
+    }
+
+    @ViewBuilder
+    private func analysisCard(_ result: CanISpendResult) -> some View {
+        let value = Money.parse(amount) ?? 0
+        VStack(spacing: 12) {
+            Image(systemName: result.icon)
+                .font(.system(size: 44, weight: .light))
+                .foregroundStyle(result.color)
+            Text(result.verdict.rawValue)
+                .font(Fonts.title(22))
+                .foregroundStyle(result.color)
+            Text(result.reason)
+                .font(Fonts.caption())
+                .foregroundStyle(Theme.textSecondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+            Divider().overlay(Theme.border)
+            IndicatorRow(icon: "wallet.bifold.fill", title: "Saldo projetado",
+                         value: Money.format(app.balance - value), color: Theme.info)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(18)
+        .background(result.color.opacity(0.07))
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(result.color.opacity(0.35), lineWidth: 1)
+        )
+    }
 }
 
-// MARK: - TELA 11: Inteligência Financeira
+// MARK: - TELA: Inteligência financeira
 
 struct IntelligenceView: View {
     @EnvironmentObject var app: AppState
 
+    /// Regras determinísticas geradas a partir dos dados do usuário —
+    /// prontas para serem substituídas pelo motor do backend no futuro.
+    private var insights: [InsightCard] {
+        var list: [InsightCard] = []
+
+        if let overdue = app.debts.first(where: { $0.status == .overdue }) {
+            list.append(.init(
+                title: "Conta atrasada",
+                message: "\(overdue.creditor) está atrasada há \(overdue.dueDate.formatted(.dateTime.day().month())). Quite o quanto antes para evitar encargos.",
+                action: "Ver dívida",
+                tone: .warning
+            ))
+        }
+
+        if let highInterest = app.debts
+            .filter({ $0.status != .paidOff })
+            .max(by: { $0.interestRate < $1.interestRate }),
+           highInterest.interestRate >= 100 {
+            list.append(.init(
+                title: "Juros elevados",
+                message: "\(highInterest.creditor) cobra \(String(format: "%.0f", highInterest.interestRate))% a.a. Priorize-a na sua estratégia de quitação.",
+                action: "Ver plano",
+                tone: .action
+            ))
+        }
+
+        for card in app.cards where card.utilization >= 0.8 {
+            list.append(.init(
+                title: "Cartão perto do limite",
+                message: "\(card.name) está com \(Int(card.utilization * 100))% do limite utilizado (\(Money.format(card.available)) livres).",
+                action: nil,
+                tone: .warning
+            ))
+        }
+
+        for category in app.budget where category.limit > 0 && category.progress > 1 {
+            list.append(.init(
+                title: "Orçamento estourado",
+                message: "\(category.name) gastou \(Money.format(category.spent)) de \(Money.format(category.limit)) — \(Int((category.progress - 1) * 100))% acima do limite.",
+                action: "Revisar",
+                tone: .warning
+            ))
+        }
+
+        let last = app.reports[2].values
+        if last.count >= 2, last[last.count - 1] < last[last.count - 2] {
+            let drop = last[last.count - 2] - last[last.count - 1]
+            list.append(.init(
+                title: "Dívidas em queda",
+                message: "Suas dívidas caíram \(Money.format(drop)) no último período. Continue assim!",
+                action: nil,
+                tone: .positive
+            ))
+        }
+
+        let expense = app.reports[1].values
+        if expense.count >= 2, expense[expense.count - 1] < expense[expense.count - 2] {
+            list.append(.init(
+                title: "Gastos controlados",
+                message: "Suas despesas do mês ficaram abaixo do mês anterior. Bom trabalho.",
+                action: nil,
+                tone: .positive
+            ))
+        }
+
+        return list
+    }
+
     var body: some View {
         ScreenScroll {
-            VStack(alignment: .leading, spacing: 18) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Seu Verdinho")
-                            .font(Fonts.headline(20))
-                            .foregroundStyle(Theme.text)
-                        Text("A IA analisa seu comportamento financeiro")
-                            .font(Fonts.caption())
-                            .foregroundStyle(Theme.textSecondary)
-                    }
-                    Spacer()
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 20))
-                        .foregroundStyle(Theme.green)
-                        .frame(width: 40, height: 40)
-                        .background(Theme.greenSoft())
-                        .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+            VStack(alignment: .leading, spacing: 16) {
+                if insights.isEmpty {
+                    EmptyState(
+                        icon: "sparkles",
+                        title: "Tudo sob controle",
+                        message: "Nenhum alerta no momento. Continue organizando suas finanças."
+                    )
                 }
 
-                ForEach(app.insights) { insight in
+                ForEach(insights) { insight in
                     AppCard {
-                        VStack(alignment: .leading, spacing: 10) {
-                            HStack(spacing: 8) {
-                                Image(systemName: insightToneIcon(insight.tone))
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundStyle(insightToneColor(insight.tone))
+                        HStack(alignment: .top, spacing: 12) {
+                            Image(systemName: insight.tone == .positive
+                                  ? "checkmark.seal.fill"
+                                  : insight.tone == .action ? "lightbulb.fill" : "exclamationmark.triangle.fill")
+                                .font(.system(size: 16))
+                                .foregroundStyle(toneColor(insight.tone))
+                                .frame(width: 36, height: 36)
+                                .background(Theme.soft(toneColor(insight.tone)))
+                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            VStack(alignment: .leading, spacing: 4) {
                                 Text(insight.title)
+                                    .font(Fonts.bodyMedium())
+                                    .foregroundStyle(Theme.text)
+                                Text(insight.message)
+                                    .font(Fonts.caption())
+                                    .foregroundStyle(Theme.textSecondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                if let action = insight.action {
+                                    Button(action) {}
                                     .font(Fonts.captionStrong())
-                                    .foregroundStyle(insightToneColor(insight.tone))
-                            }
-                            Text(insight.message)
-                                .font(Fonts.body())
-                                .foregroundStyle(Theme.text)
-                            if let action = insight.action {
-                                switch action {
-                                case "Ver cartão":
-                                    NavigationLink {
-                                        CardsView()
-                                    } label: {
-                                        actionLabel(action)
-                                    }
-                                    .buttonStyle(.plain)
-                                case "Ver metas":
-                                    NavigationLink {
-                                        GoalsView()
-                                    } label: {
-                                        actionLabel(action)
-                                    }
-                                    .buttonStyle(.plain)
-                                default:
-                                    Button {
-                                        app.selectedTab = action == "Ajustar plano" ? .debts : .planning
-                                    } label: {
-                                        actionLabel(action)
-                                    }
-                                    .buttonStyle(.plain)
+                                    .foregroundStyle(Theme.green)
+                                    .padding(.top, 2)
                                 }
                             }
                         }
@@ -150,29 +210,11 @@ struct IntelligenceView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private func actionLabel(_ text: String) -> some View {
-        HStack(spacing: 4) {
-            Text(text)
-                .font(Fonts.captionStrong())
-            Image(systemName: "arrow.right")
-                .font(.system(size: 11, weight: .bold))
-        }
-        .foregroundStyle(Theme.green)
-    }
-
-    private func insightToneIcon(_ tone: InsightCard.Tone) -> String {
-        switch tone {
-        case .positive: "arrow.down.right.circle.fill"
-        case .warning: "exclamationmark.triangle.fill"
-        case .action: "lightbulb.fill"
-        }
-    }
-
-    private func insightToneColor(_ tone: InsightCard.Tone) -> Color {
+    private func toneColor(_ tone: InsightCard.Tone) -> Color {
         switch tone {
         case .positive: Theme.green
         case .warning: Theme.warning
-        case .action: Theme.info
+        case .action: Theme.greenBright
         }
     }
 }

@@ -1,158 +1,160 @@
 import SwiftUI
 
-// MARK: - TELA 05: Detalhe da Dívida
+// MARK: - TELA: Detalhe da dívida
 
 struct DebtDetailView: View {
-    let debt: Debt
     @EnvironmentObject var app: AppState
-    @State private var showPayoffPlan = false
+    let debt: Debt
+    @State private var showPaymentSheet = false
 
     var body: some View {
         ScreenScroll {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 18) {
                 AppCard {
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 14) {
                         HStack(spacing: 12) {
                             Image(systemName: debt.type.icon)
-                                .font(.system(size: 20, weight: .semibold))
+                                .font(.system(size: 18, weight: .semibold))
                                 .foregroundStyle(Theme.green)
-                                .frame(width: 46, height: 46)
-                                .background(Theme.greenSoft())
+                                .frame(width: 44, height: 44)
+                                .background(Theme.soft(Theme.green))
                                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(debt.type.rawValue)
-                                    .font(Fonts.bodyMedium())
-                                    .foregroundStyle(Theme.text)
                                 Text(debt.creditor)
-                                    .font(Fonts.caption())
+                                    .font(Fonts.headline(18))
+                                    .foregroundStyle(Theme.text)
+                                Text(debt.type.rawValue)
+                                    .font(Fonts.caption(12))
                                     .foregroundStyle(Theme.textSecondary)
                             }
                             Spacer()
-                            Badge(text: debt.status == .overdue ? "Atrasada" : debt.status == .paidOff ? "Quitada" : "Em dia",
-                                  color: debt.status == .overdue ? Theme.danger : debt.status == .paidOff ? Theme.green : Theme.info)
+                            Badge(text: debt.status.label, color: debt.status.color)
                         }
-                        Text(Money.format(debt.remainingBalance))
-                            .font(Fonts.money(32))
-                            .foregroundStyle(Theme.text)
-                    }
-                }
 
-                AppCard {
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack {
-                            Text("Progresso de quitação")
-                                .font(Fonts.captionStrong())
-                                .foregroundStyle(Theme.textSecondary)
+                        HStack(alignment: .lastTextBaseline) {
+                            Text(Money.format(debt.remainingBalance))
+                                .font(Fonts.money(32))
+                                .foregroundStyle(Theme.text)
                             Spacer()
-                            Text("\(Int(debt.progress * 100))%")
+                            Text("\(Int(debt.progress * 100))% quitado")
                                 .font(Fonts.captionStrong())
                                 .foregroundStyle(Theme.green)
                         }
-                        ProgressBar(progress: debt.progress, color: Theme.green, height: 12)
+
+                        ProgressBar(progress: debt.progress, color: Theme.green, height: 8)
+
                         HStack {
-                            Text("Pago \(Money.format(debt.paidAmount))")
+                            Text("\(debt.paidInstallments)/\(debt.installmentCount) parcelas")
                                 .font(Fonts.caption(12))
                                 .foregroundStyle(Theme.textSecondary)
                             Spacer()
-                            Text("Falta \(Money.format(debt.remainingBalance))")
+                            Text("Vence \(debt.dueDate.formatted(.dateTime.day().month()))")
                                 .font(Fonts.caption(12))
-                                .foregroundStyle(Theme.textSecondary)
+                                .foregroundStyle(debt.status == .overdue ? Theme.danger : Theme.textSecondary)
                         }
                     }
                 }
 
                 AppCard {
-                    VStack(spacing: 14) {
-                        infoRow("Valor original", Money.format(debt.originalAmount))
-                        Divider().overlay(Theme.border)
-                        infoRow("Valor já pago", Money.format(debt.paidAmount), color: Theme.green)
-                        Divider().overlay(Theme.border)
-                        infoRow("Saldo restante", Money.format(debt.remainingBalance), color: Theme.warning)
-                        Divider().overlay(Theme.border)
-                        infoRow("Juros", "\(String(format: "%.0f", debt.interestRate))% a.a.", color: debt.interestRate > 100 ? Theme.danger : Theme.text)
-                        Divider().overlay(Theme.border)
-                        infoRow("Parcela atual", "\(Money.format(debt.installment)) • \(debt.paidInstallments)/\(debt.installmentCount)")
-                        Divider().overlay(Theme.border)
-                        infoRow("Vencimento", debt.dueDate.formatted(.dateTime.day().month().year()))
-                    }
-                }
-
-                SectionTitle("Histórico de pagamentos")
-                if debt.paidInstallments == 0 {
-                    EmptyState(
-                        icon: "clock.arrow.circlepath",
-                        title: "Nenhum pagamento ainda",
-                        message: "Os pagamentos aparecerão aqui conforme você quitar as parcelas."
-                    )
-                } else {
-                    AppCard {
-                        VStack(spacing: 14) {
-                            ForEach(paymentHistory, id: \.self) { installmentNumber in
-                                paymentRow(installmentNumber: installmentNumber)
-                                if installmentNumber != paymentHistory.last {
-                                    Divider().overlay(Theme.border)
-                                }
-                            }
+                    VStack(alignment: .leading, spacing: 14) {
+                        SectionTitle("Informações")
+                        VStack(spacing: 10) {
+                            IndicatorRow(icon: "banknote.fill", title: "Valor original",
+                                         value: Money.format(debt.originalAmount), color: Theme.textSecondary)
+                            IndicatorRow(icon: "percent", title: "Juros",
+                                         value: debt.interestRate > 0
+                                            ? "\(String(format: "%.1f", debt.interestRate))% a.a."
+                                            : "Sem juros",
+                                         color: debt.interestRate > 0 ? Theme.danger : Theme.green)
+                            IndicatorRow(icon: "calendar.badge.clock", title: "Parcela mensal",
+                                         value: Money.format(debt.installment), color: Theme.info)
+                            IndicatorRow(icon: "list.number", title: "Prioridade",
+                                         value: debt.priority.rawValue, color: debt.priority.color)
                         }
                     }
                 }
 
-                PrimaryButton("Planejar quitação", icon: "chart.line.uptrend.xyaxis") {
-                    showPayoffPlan = true
+                VStack(spacing: 10) {
+                    PrimaryButton(debt.status == .paidOff ? "Dívida quitada 🎉" : "Registrar pagamento",
+                                  icon: debt.status == .paidOff ? "checkmark.seal.fill" : "banknote.fill") {
+                        showPaymentSheet = true
+                    }
+                    .disabled(debt.status == .paidOff)
+                    .opacity(debt.status == .paidOff ? 0.6 : 1)
+
+                    if debt.status != .paidOff {
+                        NavigationLink {
+                            PayoffPlanView()
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "chart.line.uptrend.xyaxis")
+                                    .font(.system(size: 14, weight: .semibold))
+                                Text("Ver plano de quitação")
+                                    .font(Fonts.bodyMedium())
+                            }
+                            .foregroundStyle(Theme.green)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 13)
+                            .background(Theme.soft(Theme.green))
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
             }
         }
         .navigationTitle(debt.creditor)
         .navigationBarTitleDisplayMode(.inline)
-        .fullScreenCover(isPresented: $showPayoffPlan) {
-            PayoffPlanView(debt: debt)
+        .sheet(isPresented: $showPaymentSheet) {
+            PaymentSheet(debt: debt)
+                .environmentObject(app)
+                .presentationDetents([.height(300)])
         }
     }
+}
 
-    private func infoRow(_ title: String, _ value: String, color: Color = Theme.text) -> some View {
-        HStack {
-            Text(title)
-                .font(Fonts.caption())
-                .foregroundStyle(Theme.textSecondary)
-            Spacer()
-            Text(value)
+// MARK: - Sheet: registrar pagamento
+
+struct PaymentSheet: View {
+    @EnvironmentObject var app: AppState
+    @Environment(\.dismiss) private var dismiss
+    let debt: Debt
+    @State private var amount = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("Registrar pagamento")
+                .font(Fonts.headline(20))
+                .foregroundStyle(Theme.text)
+
+            CurrencyField(value: $amount, placeholder: "0,00")
+
+            HStack {
+                Button("Valor da parcela") {
+                    amount = String(format: "%.2f", debt.installment)
+                }
                 .font(Fonts.captionStrong())
-                .foregroundStyle(color)
-                .multilineTextAlignment(.trailing)
-        }
-    }
-
-    /// Números das parcelas pagas, da mais recente para a mais antiga
-    /// (mostra até as 4 últimas).
-    private var paymentHistory: [Int] {
-        let last = debt.paidInstallments
-        guard last > 0 else { return [] }
-        return Array((max(1, last - 3)...last).reversed())
-    }
-
-    private func paymentRow(installmentNumber: Int) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 18))
                 .foregroundStyle(Theme.green)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Parcela \(installmentNumber)")
-                    .font(Fonts.bodyMedium())
-                    .foregroundStyle(Theme.text)
-                Text(Calendar.current.date(byAdding: .month, value: installmentNumber - debt.paidInstallments, to: .now)?
-                    .formatted(.dateTime.day().month().year()) ?? "")
-                    .font(Fonts.caption(12))
-                    .foregroundStyle(Theme.textSecondary)
+                Button("Quitar dívida") {
+                    amount = String(format: "%.2f", debt.remainingBalance)
+                }
+                .font(Fonts.captionStrong())
+                .foregroundStyle(Theme.warning)
             }
+
             Spacer()
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(Money.format(debt.installment))
-                    .font(Fonts.captionStrong())
-                    .foregroundStyle(Theme.text)
-                Text("Pago")
-                    .font(Fonts.caption(12))
-                    .foregroundStyle(Theme.green)
+
+            PrimaryButton("Confirmar pagamento", icon: "checkmark.circle.fill") {
+                let value = Money.parse(amount) ?? 0
+                guard value > 0 else { return }
+                app.balance -= value
+                app.recordPayment(value, on: debt)
+                Haptics.success()
+                dismiss()
             }
+            .disabled((Money.parse(amount) ?? 0) <= 0)
+            .opacity((Money.parse(amount) ?? 0) > 0 ? 1 : 0.5)
         }
+        .padding(24)
     }
 }

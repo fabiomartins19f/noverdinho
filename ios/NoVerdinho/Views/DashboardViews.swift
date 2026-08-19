@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - TELA 03: Dashboard
+// MARK: - TELA 04: Dashboard principal (design premium No Verdinho)
 
 struct DashboardView: View {
     @EnvironmentObject var app: AppState
@@ -16,19 +16,57 @@ struct DashboardView: View {
             }
         }
         .task {
-            // Pequeno "carregamento" inicial para dar ritmo profissional.
             try? await Task.sleep(for: .seconds(0.35))
-            loading = false
+            withAnimation(.easeOut(duration: 0.3)) { loading = false }
         }
+        .toolbar(.hidden, for: .navigationBar)
         .sheet(item: $editingTransaction) { transaction in
             EditTransactionSheet(transaction: transaction)
                 .environmentObject(app)
                 .presentationDetents([.height(380)])
         }
-        .toolbar(.hidden, for: .navigationBar)
     }
 
-    /// Variação do saldo nos últimos 7 dias (receitas − despesas).
+    // MARK: Cabeçalho
+
+    private var greeting: String {
+        let hour = Calendar.current.component(.hour, from: .now)
+        switch hour {
+        case 5..<12: return "Bom dia"
+        case 12..<18: return "Boa tarde"
+        default: return "Boa noite"
+        }
+    }
+
+    private var firstName: String {
+        app.userName.split(separator: " ").first.map(String.init) ?? app.userName
+    }
+
+    private var initials: String {
+        let parts = app.userName.split(separator: " ").prefix(2)
+        return parts.compactMap { $0.first.map(String.init) }.joined().uppercased()
+    }
+
+    private var overdueCount: Int {
+        app.debts.filter { $0.status == .overdue }.count
+    }
+
+    // MARK: Dados
+
+    private var monthIncome: Double {
+        let start = Calendar.current.dateInterval(of: .month, for: .now)?.start ?? .now
+        return app.transactions
+            .filter { $0.kind == .income && $0.date >= start }
+            .reduce(0) { $0 + $1.amount }
+    }
+
+    private var monthExpense: Double {
+        let start = Calendar.current.dateInterval(of: .month, for: .now)?.start ?? .now
+        return app.transactions
+            .filter { $0.kind == .expense && $0.date >= start }
+            .reduce(0) { $0 + $1.amount }
+    }
+
     private var weekDelta: Double {
         let since = Calendar.current.date(byAdding: .day, value: -7, to: .now) ?? .now
         let recent = app.transactions.filter { $0.date >= since }
@@ -37,220 +75,240 @@ struct DashboardView: View {
         return income - expense
     }
 
-    /// Receitas do mês atual.
-    private var monthIncome: Double {
-        monthTransactions.filter { $0.kind == .income }.reduce(0) { $0 + $1.amount }
+    /// Variação % da última para a penúltima entrada de uma série de relatório.
+    private func delta(_ series: [Double]) -> Double? {
+        guard series.count >= 2, series[series.count - 2] != 0 else { return nil }
+        return (series[series.count - 1] - series[series.count - 2]) / series[series.count - 2] * 100
     }
 
-    /// Despesas do mês atual.
-    private var monthExpense: Double {
-        monthTransactions.filter { $0.kind == .expense }.reduce(0) { $0 + $1.amount }
+    /// Total dos compromissos dos próximos 15 dias.
+    private var commitmentsNext15Days: Double {
+        let limit = Calendar.current.date(byAdding: .day, value: 15, to: .now) ?? .now
+        return app.upcomingPayments
+            .filter { $0.date <= limit }
+            .reduce(0) { $0 + $1.amount }
     }
 
-    private var monthTransactions: [Transaction] {
-        let start = Calendar.current.dateInterval(of: .month, for: .now)?.start ?? .now
-        return app.transactions.filter { $0.date >= start }
+    private var bestNextAction: (title: String, message: String, accent: Color)? {
+        app.bestNextAction
     }
 
-    private var skeleton: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack {
-                VStack(alignment: .leading, spacing: 8) {
-                    SkeletonBlock(width: 130, height: 20)
-                    SkeletonBlock(width: 190, height: 12)
-                }
-                Spacer()
-                SkeletonBlock(width: 40, height: 40)
-            }
-            SkeletonBlock(height: 96).frame(maxWidth: .infinity)
-            HStack(spacing: 12) {
-                ForEach(0..<3, id: \.self) { _ in
-                    SkeletonBlock(height: 74).frame(maxWidth: .infinity)
-                }
-            }
-            SkeletonBlock(height: 170).frame(maxWidth: .infinity)
-            SkeletonBlock(height: 60).frame(maxWidth: .infinity)
-            SkeletonBlock(height: 60).frame(maxWidth: .infinity)
-        }
-    }
+    // MARK: Conteúdo
 
     private var content: some View {
         VStack(alignment: .leading, spacing: 20) {
-                // Topo
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Bom dia")
-                            .font(Fonts.headline(20))
-                            .foregroundStyle(Theme.text)
-                        Text("Como está sua vida financeira hoje?")
-                            .font(Fonts.caption())
-                            .foregroundStyle(Theme.textSecondary)
-                    }
-                    Spacer()
-                    Button {
-                        app.selectedTab = .profile
-                    } label: {
-                        Image(systemName: "person.crop.circle.fill")
-                            .font(.system(size: 40))
-                            .foregroundStyle(Theme.surfaceElevated)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Abrir perfil")
-                }
+            header
 
-                // Saldo
-                AppCard {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Saldo disponível")
-                            .font(Fonts.caption())
-                            .foregroundStyle(Theme.textSecondary)
-                        Text(Money.format(app.balance))
-                            .font(Fonts.money(34))
-                            .foregroundStyle(Theme.text)
-                        HStack(spacing: 4) {
-                            Image(systemName: weekDelta >= 0 ? "arrow.down.left.circle.fill" : "arrow.up.right.circle.fill")
-                                .font(.system(size: 12))
-                            Text("\(weekDelta >= 0 ? "+" : "")\(Money.format(weekDelta)) esta semana")
-                                .font(Fonts.caption(12))
-                        }
-                        .foregroundStyle(weekDelta >= 0 ? Theme.green : Theme.danger)
-                    }
-                }
+            BalanceCard(balance: app.balance, weekDelta: weekDelta, onSeeTransactions: {
+                app.selectedTab = .home
+            })
 
-                // Indicadores (valores reais das transações)
-                HStack(spacing: 12) {
-                    miniIndicator("arrow.down.left.circle.fill", "Receitas", monthIncome, Theme.green)
-                    miniIndicator("arrow.up.right.circle.fill", "Despesas", monthExpense, Theme.danger)
-                    miniIndicator("banknote.fill", "Dívidas", app.totalDebt, Theme.warning)
-                }
+            HStack(spacing: 10) {
+                SummaryCard(icon: "arrow.down.left.circle.fill", title: "Receitas",
+                            value: Money.formatCompact(monthIncome),
+                            delta: delta(app.reports[0].values),
+                            color: Theme.green)
+                SummaryCard(icon: "arrow.up.right.circle.fill", title: "Despesas",
+                            value: Money.formatCompact(monthExpense),
+                            delta: delta(app.reports[1].values),
+                            color: Theme.danger,
+                            deltaPositiveIsGood: false)
+                SummaryCard(icon: "banknote.fill", title: "Dívidas",
+                            value: Money.formatCompact(app.totalDebt),
+                            delta: delta(app.reports[2].values),
+                            color: Theme.warning,
+                            deltaPositiveIsGood: false)
+            }
 
-                // Seu Verdinho
-                AppCard {
-                    VStack(alignment: .leading, spacing: 14) {
-                        HStack {
-                            SectionTitle("Seu Verdinho")
-                            Spacer()
-                            Badge(text: app.level.band.title, color: app.level.band.color)
-                        }
-                        HStack(spacing: 20) {
-                            GreenLevelGauge(score: app.level.score)
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text(app.level.message)
-                                    .font(Fonts.bodyMedium())
-                                    .foregroundStyle(Theme.text)
-                                LineChart(points: app.level.evolution)
-                                    .frame(height: 90)
-                            }
-                        }
-                    }
-                }
+            verdinhoSection
 
-                // Alerta inteligente — só aparece quando há categoria estourando o limite
-                if let overBudget = app.budget.first(where: { $0.progress > 1 }) {
-                    HStack(alignment: .top, spacing: 12) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 18))
-                            .foregroundStyle(Theme.warning)
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Atenção")
-                                .font(Fonts.captionStrong())
-                                .foregroundStyle(Theme.warning)
-                            Text("\(overBudget.name) excedeu o limite do mês (\(Money.format(overBudget.spent)) de \(Money.format(overBudget.limit))). Ajuste seus gastos ou revise o orçamento.")
+            if let action = bestNextAction {
+                SmartActionCard(
+                    icon: "lightbulb.fill",
+                    title: action.title,
+                    message: action.message,
+                    actionTitle: "Ver plano",
+                    accent: Theme.greenBright
+                ) {
+                    app.selectedTab = .debts
+                }
+            }
+
+            if commitmentsNext15Days > 0 {
+                FinancialAlertCard(
+                    message: "Suas despesas previstas para os próximos 15 dias somam \(Money.format(commitmentsNext15Days)) — acima do recomendado para manter seu nível.",
+                    actionTitle: "Ver previsão"
+                ) {
+                    app.selectedTab = .planning
+                }
+            }
+
+            CanISpendCard {
+                app.selectedTab = .planning
+            }
+
+            upcomingSection
+
+            transactionsSection
+        }
+    }
+
+    // MARK: Header
+
+    private var header: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("\(greeting), \(firstName) 👋")
+                    .font(Fonts.headline(22))
+                    .foregroundStyle(Theme.text)
+                Text("Como está sua vida financeira hoje?")
+                    .font(Fonts.caption())
+                    .foregroundStyle(Theme.textSecondary)
+            }
+            Spacer()
+            NotificationButton(badgeCount: overdueCount) {
+                app.selectedTab = .debts
+            }
+            AvatarView(initials: initials)
+        }
+    }
+
+    // MARK: Seu Verdinho
+
+    private var verdinhoSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                SectionTitle("Seu Verdinho")
+                Spacer()
+                Badge(text: app.level.band.title, color: app.level.band.color)
+            }
+
+            AppCard {
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack(spacing: 20) {
+                        VerdinhoScore(score: app.level.score)
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Você avançou \(app.level.delta) pontos")
+                                .font(Fonts.bodyMedium())
+                                .foregroundStyle(Theme.text)
+                            Text("neste mês")
                                 .font(Fonts.caption())
                                 .foregroundStyle(Theme.textSecondary)
-                        }
-                        Spacer()
-                    }
-                    .padding(14)
-                    .background(Theme.warningSoft)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                }
-
-                // Próximos compromissos
-                SectionTitle("Próximos compromissos", action: ("Ver tudo", { app.selectedTab = .debts }))
-
-                if app.upcomingPayments.isEmpty {
-                    EmptyState(
-                        icon: "calendar",
-                        title: "Nenhum compromisso",
-                        message: "Seus próximos pagamentos aparecerão aqui."
-                    )
-                }
-
-                ForEach(app.upcomingPayments.prefix(3)) { payment in
-                    HStack(spacing: 12) {
-                        Image(systemName: payment.kind.icon)
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(payment.kind.color)
-                            .frame(width: 38, height: 38)
-                            .background(payment.kind.color.opacity(0.12))
-                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(payment.name)
-                                .font(Fonts.bodyMedium())
-                                .foregroundStyle(Theme.text)
-                            Text(payment.date.formatted(.dateTime.day().month().weekday(.abbreviated)))
-                                .font(Fonts.caption(12))
-                                .foregroundStyle(Theme.textSecondary)
-                        }
-                        Spacer()
-                        Text(Money.format(payment.amount))
-                            .font(Fonts.captionStrong())
-                            .foregroundStyle(payment.kind.color)
-                    }
-                    .padding(12)
-                    .background(Theme.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                }
-
-                // Últimas transações
-                SectionTitle("Últimas transações")
-
-                if app.transactions.isEmpty {
-                    EmptyState(
-                        icon: "list.bullet.rectangle",
-                        title: "Sem movimentações",
-                        message: "Registre receitas e despesas pelo botão + para acompanhar aqui."
-                    )
-                }
-
-                ForEach(app.transactions.prefix(4)) { transaction in
-                    Button {
-                        editingTransaction = transaction
-                    } label: {
-                        HStack(spacing: 12) {
-                        Image(systemName: transaction.kind == .income ? "arrow.down.left.circle.fill" : "arrow.up.right.circle.fill")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(transaction.kind == .income ? Theme.green : Theme.textSecondary)
-                            .frame(width: 38, height: 38)
-                            .background(Theme.surfaceAlt)
-                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(transaction.name)
-                                .font(Fonts.bodyMedium())
-                                .foregroundStyle(Theme.text)
-                            Text(transaction.category)
-                                .font(Fonts.caption(12))
-                                .foregroundStyle(Theme.textSecondary)
-                        }
-                        Spacer()
-Text("\(transaction.kind == .income ? "+" : "-")\(Money.format(transaction.amount))")
-                                .font(Fonts.captionStrong())
-                                .foregroundStyle(transaction.kind == .income ? Theme.green : Theme.text)
+                            Button {
+                                app.selectedTab = .planning
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Text("Ver minha evolução")
+                                        .font(Fonts.captionStrong())
+                                    Image(systemName: "arrow.right")
+                                        .font(.system(size: 11, weight: .bold))
+                                }
+                                .foregroundStyle(Theme.green)
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
-                    .buttonStyle(.plain)
-                    .swipeActions(edge: .trailing) {
-                        Button(role: .destructive) {
-                            deleteTransaction(transaction)
-                        } label: {
-                            Label("Excluir", systemImage: "trash")
-                        }
-                    }
-                    .accessibilityLabel("Editar \(transaction.name)")
+
+                    Text(app.level.message)
+                        .font(Fonts.caption())
+                        .foregroundStyle(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    LineChart(points: app.level.evolution)
+                        .frame(height: 80)
                 }
             }
         }
+    }
+
+    // MARK: Próximos compromissos
+
+    private var upcomingSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            SectionTitle("Próximos compromissos", action: ("Ver tudo", { app.selectedTab = .debts }))
+
+            if app.upcomingPayments.isEmpty {
+                EmptyState(
+                    icon: "calendar",
+                    title: "Nenhum compromisso",
+                    message: "Seus próximos pagamentos aparecerão aqui."
+                )
+            }
+
+            ForEach(app.upcomingPayments.prefix(3)) { payment in
+                UpcomingPaymentRow(
+                    icon: payment.kind.icon,
+                    title: payment.name,
+                    subtitle: "vence em \(payment.daysRemaining) dias",
+                    value: Money.format(payment.amount),
+                    color: payment.kind.color
+                )
+            }
+        }
+    }
+
+    // MARK: Últimas transações
+
+    private var transactionsSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            SectionTitle("Últimas transações")
+
+            if app.transactions.isEmpty {
+                EmptyState(
+                    icon: "list.bullet.rectangle",
+                    title: "Sem movimentações",
+                    message: "Registre receitas e despesas pelo botão + para acompanhar aqui."
+                )
+            }
+
+            ForEach(app.transactions.prefix(4)) { transaction in
+                Button {
+                    editingTransaction = transaction
+                } label: {
+                    transactionRow(transaction)
+                }
+                .buttonStyle(.plain)
+                .swipeActions(edge: .trailing) {
+                    Button(role: .destructive) {
+                        deleteTransaction(transaction)
+                    } label: {
+                        Label("Excluir", systemImage: "trash")
+                    }
+                }
+                .accessibilityLabel("Editar \(transaction.name)")
+            }
+        }
+    }
+
+    private func transactionRow(_ transaction: Transaction) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: transaction.kind == .income ? "arrow.down.left.circle.fill" : "arrow.up.right.circle.fill")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(transaction.kind == .income ? Theme.green : Theme.textSecondary)
+                .frame(width: 38, height: 38)
+                .background(Theme.surfaceAlt)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(transaction.name)
+                    .font(Fonts.bodyMedium())
+                    .foregroundStyle(Theme.text)
+                Text(transaction.category)
+                    .font(Fonts.caption(12))
+                    .foregroundStyle(Theme.textSecondary)
+            }
+            Spacer()
+            Text("\(transaction.kind == .income ? "+" : "-")\(Money.format(transaction.amount))")
+                .font(Fonts.captionStrong())
+                .foregroundStyle(transaction.kind == .income ? Theme.green : Theme.text)
+        }
+        .padding(12)
+        .background(Theme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Theme.border, lineWidth: 1)
+        )
+    }
 
     private func deleteTransaction(_ transaction: Transaction) {
         app.balance += transaction.kind == .expense ? transaction.amount : -transaction.amount
@@ -258,28 +316,31 @@ Text("\(transaction.kind == .income ? "+" : "-")\(Money.format(transaction.amoun
         Haptics.light()
     }
 
-    private func miniIndicator(_ icon: String, _ title: String, _ value: Double, _ color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Image(systemName: icon)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(color)
-            Text(title)
-                .font(Fonts.caption(12))
-                .foregroundStyle(Theme.textSecondary)
-            Text(Money.formatCompact(value))
-                .font(Fonts.captionStrong(14))
-                .foregroundStyle(Theme.text)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+    // MARK: Skeleton
+
+    private var skeleton: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack {
+                VStack(alignment: .leading, spacing: 8) {
+                    SkeletonBlock(width: 140, height: 20)
+                    SkeletonBlock(width: 190, height: 12)
+                }
+                Spacer()
+                SkeletonBlock(width: 40, height: 40)
+            }
+            SkeletonBlock(height: 110).frame(maxWidth: .infinity)
+            HStack(spacing: 10) {
+                SkeletonBlock(width: 100, height: 90)
+                SkeletonBlock(width: 100, height: 90)
+                SkeletonBlock(width: 100, height: 90)
+            }
+            SkeletonBlock(height: 160).frame(maxWidth: .infinity)
+            SkeletonBlock(height: 60).frame(maxWidth: .infinity)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(Theme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 }
 
-// MARK: - TELA 04: Central de Dívidas
+// MARK: - TELA 05: Central de Dívidas
 
 struct DebtsView: View {
     @EnvironmentObject var app: AppState
@@ -296,7 +357,6 @@ struct DebtsView: View {
         }
     }
 
-    /// Total das parcelas das dívidas ativas neste mês.
     private var monthlyInstallments: Double {
         app.debts
             .filter { $0.status != .paidOff }
@@ -319,7 +379,6 @@ struct DebtsView: View {
                     .foregroundStyle(Theme.green)
                 }
 
-                // Filtros
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         ForEach(filters.indices, id: \.self) { index in
@@ -370,6 +429,8 @@ struct DebtsView: View {
     }
 }
 
+// MARK: - Card de dívida
+
 struct DebtCardView: View {
     let debt: Debt
 
@@ -378,58 +439,121 @@ struct DebtCardView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 12) {
                     Image(systemName: debt.type.icon)
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(Theme.green)
-                        .frame(width: 40, height: 40)
-                        .background(Theme.greenSoft())
-                        .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+                        .frame(width: 38, height: 38)
+                        .background(Theme.soft(Theme.green))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(debt.type.rawValue)
+                        Text(debt.creditor)
                             .font(Fonts.bodyMedium())
                             .foregroundStyle(Theme.text)
-                        Text(debt.creditor)
+                        Text("\(debt.paidInstallments)/\(debt.installmentCount) parcelas pagas")
                             .font(Fonts.caption(12))
                             .foregroundStyle(Theme.textSecondary)
                     }
                     Spacer()
-                    Badge(text: debt.status == .overdue ? "Atrasada" : debt.status == .paidOff ? "Quitada" : "Em dia",
-                          color: debt.status == .overdue ? Theme.danger : debt.status == .paidOff ? Theme.green : Theme.info)
+                    Badge(text: debt.status.label, color: debt.status.color)
                 }
 
                 HStack(alignment: .lastTextBaseline) {
                     Text(Money.format(debt.remainingBalance))
-                        .font(Fonts.headline(20))
+                        .font(Fonts.headline(22))
                         .foregroundStyle(Theme.text)
                     Spacer()
-                    Text("\(Money.format(debt.installment))/mês")
-                        .font(Fonts.caption())
+                    Text("\(Int(debt.progress * 100))%")
+                        .font(Fonts.captionStrong())
+                        .foregroundStyle(Theme.green)
+                }
+
+                ProgressBar(progress: debt.progress, color: Theme.green, height: 8)
+
+                HStack {
+                    Text("Parcela \(Money.format(debt.installment))")
+                        .font(Fonts.caption(12))
                         .foregroundStyle(Theme.textSecondary)
-                }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack {
-                        Text("Progresso")
-                            .font(Fonts.caption(12))
-                            .foregroundStyle(Theme.textSecondary)
-                        Spacer()
-                        Text("\(Int(debt.progress * 100))%")
-                            .font(Fonts.captionStrong(12))
-                            .foregroundStyle(Theme.green)
-                    }
-                    ProgressBar(progress: debt.progress, color: Theme.green)
-                }
-
-                HStack(spacing: 12) {
-                    Label("\(String(format: "%.0f", debt.interestRate))% a.a.", systemImage: "percent")
-                    Label(debt.dueDate.formatted(.dateTime.day().month()), systemImage: "calendar")
                     Spacer()
-                    Text(debt.priority.rawValue)
-                        .font(Fonts.captionStrong(12))
-                        .foregroundStyle(debt.priority.color)
+                    Text("Vence \(debt.dueDate.formatted(.dateTime.day().month()))")
+                        .font(Fonts.caption(12))
+                        .foregroundStyle(debt.status == .overdue ? Theme.danger : Theme.textSecondary)
                 }
-                .font(Fonts.caption(12))
-                .foregroundStyle(Theme.textSecondary)
             }
+        }
+    }
+}
+
+// MARK: - TELA: Movimentações (todas as transações)
+
+struct TransactionsView: View {
+    @EnvironmentObject var app: AppState
+    @State private var editingTransaction: Transaction?
+
+    private var sorted: [Transaction] {
+        app.transactions.sorted { $0.date > $1.date }
+    }
+
+    var body: some View {
+        ScreenScroll {
+            VStack(alignment: .leading, spacing: 12) {
+                if sorted.isEmpty {
+                    EmptyState(
+                        icon: "list.bullet.rectangle",
+                        title: "Sem movimentações",
+                        message: "Registre receitas e despesas pelo botão + para acompanhar aqui."
+                    )
+                }
+
+                ForEach(sorted) { transaction in
+                    Button {
+                        editingTransaction = transaction
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: transaction.kind == .income ? "arrow.down.left.circle.fill" : "arrow.up.right.circle.fill")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(transaction.kind == .income ? Theme.green : Theme.textSecondary)
+                                .frame(width: 38, height: 38)
+                                .background(Theme.surfaceAlt)
+                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(transaction.name)
+                                    .font(Fonts.bodyMedium())
+                                    .foregroundStyle(Theme.text)
+                                Text(transaction.date.formatted(.dateTime.day().month().year()))
+                                    .font(Fonts.caption(12))
+                                    .foregroundStyle(Theme.textSecondary)
+                            }
+                            Spacer()
+                            Text("\(transaction.kind == .income ? "+" : "-")\(Money.format(transaction.amount))")
+                                .font(Fonts.captionStrong())
+                                .foregroundStyle(transaction.kind == .income ? Theme.green : Theme.text)
+                        }
+                        .padding(12)
+                        .background(Theme.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .stroke(Theme.border, lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .swipeActions(edge: .trailing) {
+                        Button(role: .destructive) {
+                            app.balance += transaction.kind == .expense ? transaction.amount : -transaction.amount
+                            app.transactions.removeAll { $0.id == transaction.id }
+                            Haptics.light()
+                        } label: {
+                            Label("Excluir", systemImage: "trash")
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Movimentações")
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $editingTransaction) { transaction in
+            EditTransactionSheet(transaction: transaction)
+                .environmentObject(app)
+                .presentationDetents([.height(380)])
         }
     }
 }

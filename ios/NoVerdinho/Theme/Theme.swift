@@ -1,8 +1,9 @@
 import SwiftUI
 
-// MARK: - Cores (Dark Mode como padrão, com variantes Light)
+// MARK: - Cores (Dark Mode como padrão)
 
 extension Color {
+    /// Constrói uma cor a partir de um hex ("FFB84D" ou "#2FE6A0").
     init(hex: String) {
         var value: UInt64 = 0
         let cleaned = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
@@ -14,13 +15,15 @@ extension Color {
     }
 }
 
+// MARK: - Paleta
+
 enum Theme {
-    // Superfícies (Dark padrão)
-    static let background = Color(hex: "0B0F0D")
-    static let surface = Color(hex: "121714")
-    static let surfaceAlt = Color(hex: "18201B")
-    static let surfaceElevated = Color(hex: "1D2620")
-    static let border = Color(hex: "242E28")
+    // Superfícies (fundo preto profundo da identidade No Verdinho)
+    static let background = Color(hex: "050706")
+    static let surface = Color(hex: "0D1210")
+    static let surfaceAlt = Color(hex: "121A16")
+    static let surfaceElevated = Color(hex: "16201B")
+    static let border = Color(hex: "1E2A24")
     static let borderStrong = Color(hex: "2E3A33")
 
     // Verde — evolução, progresso, situações positivas
@@ -31,9 +34,6 @@ enum Theme {
         colors: [Color(hex: "4DF2B5"), Color(hex: "12C988")],
         startPoint: .leading, endPoint: .trailing
     )
-    static func greenSoft(_ opacity: Double = 0.12) -> Color {
-        Color(hex: "2FE6A0").opacity(opacity)
-    }
 
     // Texto
     static let text = Color(hex: "F3F7F4")
@@ -42,21 +42,21 @@ enum Theme {
 
     // Semânticas
     static let danger = Color(hex: "FF5A5F")
-    static let dangerSoft = Color(hex: "FF5A5F").opacity(0.12)
     static let warning = Color(hex: "FFB84D")
-    static let warningSoft = Color(hex: "FFB84D").opacity(0.12)
     static let info = Color(hex: "57A9FF")
-    static let infoSoft = Color(hex: "57A9FF").opacity(0.12)
     static let purple = Color(hex: "A48BFF")
-    static let purpleSoft = Color(hex: "A48BFF").opacity(0.12)
+
+    /// Versão translúcida de uma cor semântica para fundos.
+    static func soft(_ color: Color, _ opacity: Double = 0.12) -> Color {
+        color.opacity(opacity)
+    }
 }
 
 // MARK: - Tipografia
 
 enum Fonts {
-    // Fonte arredondada do app. Os tamanhos são fixos para manter o layout
-    // das telas; o suporte completo a Dynamic Type (escala de acessibilidade)
-    // está planejado como melhoria futura.
+    // Fonte arredondada do app. O suporte completo a Dynamic Type está
+    // planejado como melhoria futura.
     static func title(_ size: CGFloat = 28) -> Font { .system(size: size, weight: .bold, design: .rounded) }
     static func headline(_ size: CGFloat = 20) -> Font { .system(size: size, weight: .semibold, design: .rounded) }
     static func body(_ size: CGFloat = 16) -> Font { .system(size: size, weight: .regular, design: .rounded) }
@@ -70,6 +70,7 @@ enum Fonts {
 // MARK: - Formatadores
 
 enum Money {
+    /// Formata como moeda brasileira: "R$ 1.250,50".
     static func format(_ value: Double) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
@@ -108,21 +109,20 @@ enum Money {
         return value
     }
 
+    /// Formato compacto para valores grandes: "R$ 23,3 mil".
     static func formatCompact(_ value: Double) -> String {
         let absValue = abs(value)
-        if absValue >= 1000 {
-            let formatter = NumberFormatter()
-            formatter.numberStyle = .decimal
-            formatter.locale = Locale(identifier: "pt_BR")
-            formatter.maximumFractionDigits = absValue >= 100000 ? 0 : 1
-            let compact = formatter.string(from: NSNumber(value: absValue / 1000)) ?? "0"
-            return value < 0 ? "-R$ \(compact) mil" : "R$ \(compact) mil"
-        }
-        return format(value)
+        guard absValue >= 1000 else { return format(value) }
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.locale = Locale(identifier: "pt_BR")
+        formatter.maximumFractionDigits = absValue >= 100000 ? 0 : 1
+        let compact = formatter.string(from: NSNumber(value: absValue / 1000)) ?? "0"
+        return value < 0 ? "-R$ \(compact) mil" : "R$ \(compact) mil"
     }
 }
 
-// MARK: - Visualização compartilhada do fundo
+// MARK: - Fundo do app
 
 struct AppBackground: ViewModifier {
     func body(content: Content) -> some View {

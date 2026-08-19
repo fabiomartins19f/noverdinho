@@ -1,220 +1,184 @@
 import SwiftUI
 
-// MARK: - TELA 06: Plano de Quitação
+// MARK: - TELA: Plano de quitação (estratégia avalanche x bola de neve)
 
 struct PayoffPlanView: View {
-    let debt: Debt
     @EnvironmentObject var app: AppState
-    @Environment(\.dismiss) private var dismiss
-    @State private var monthlyAmount: String
     @State private var strategy = 0
+    @State private var budgetText = ""
 
-    init(debt: Debt) {
-        self.debt = debt
-        _monthlyAmount = State(initialValue: String(format: "%.0f", debt.installment))
-    }
-
-    private let strategies = [
-        (name: "Avalanche", desc: "Ataca os juros maiores primeiro. Economiza mais no total.", icon: "chart.line.downtrend.xyaxis"),
-        (name: "Bola de neve", desc: "Quita os menores saldos primeiro. Motivação mais rápida.", icon: "snowflake"),
+    private let strategies = ["Avalanche", "Bola de neve"]
+    private let strategyDescriptions = [
+        "Prioriza a dívida de maior juros. Economiza mais no total.",
+        "Prioriza a dívida de menor saldo. Quita rápido e libera caixa.",
     ]
 
-    /// Meses para quitar com aporte mensal e juros compostos.
-    private var months: Int {
-        guard let amount = Money.parse(monthlyAmount), amount > 0 else { return 0 }
-        let rate = debt.interestRate / 100 / 12
-        guard rate > 0 else { return max(1, Int(ceil(debt.remainingBalance / amount))) }
-        // Aporte insuficiente sequer cobre os juros → plano inviável em prazo curto.
-        guard rate * debt.remainingBalance < amount else { return 120 }
-        let months = -log(1 - rate * debt.remainingBalance / amount) / log(1 + rate)
-        return max(1, Int(ceil(months)))
+    private var activeDebts: [Debt] {
+        app.debts.filter { $0.status != .paidOff }
     }
 
-    /// Juros evitados em relação a seguir pagando só a parcela atual até o fim.
-    private var estimatedEconomy: Double {
-        guard months > 0, let amount = Money.parse(monthlyAmount), amount > 0 else { return 0 }
-        let remainingMonths = max(debt.installmentCount - debt.paidInstallments, 0)
-        let currentInterest = Double(remainingMonths) * debt.installment - debt.remainingBalance
-        let planInterest = Double(months) * amount - debt.remainingBalance
-        return max(currentInterest - planInterest, 0)
+    private var defaultBudget: Double {
+        activeDebts.reduce(0) { $0 + $1.installment }
+    }
+
+    private var orderedDebts: [Debt] {
+        activeDebts.sorted {
+            strategy == 0 ? $0.interestRate > $1.interestRate : $0.remainingBalance < $1.remainingBalance
+        }
+    }
+
+    /// Simula mês a mês o pagamento de `payment` na ordem dada, capitalizando
+    /// juros mensais. Determinística — sem matemática instável.
+    private func simulate(payment: Double) -> (months: Int, interest: Double) {
+        guard payment > 0 else { return (0, 0) }
+        var balances = orderedDebts.map { $0.remainingBalance }
+        var interest = 0.0
+        var months = 0
+        while balances.contains(where: { $0 > 0.01 }) && months < 720 {
+            months += 1
+            var pool = payment
+            for i in balances.indices where balances[i] > 0.01 {
+                let monthlyRate = orderedDebts[i].interestRate / 100 / 12
+                let accrued = balances[i] * monthlyRate
+                interest += accrued
+                balances[i] += accrued
+                if pool > 0.01 {
+                    let paid = min(balances[i], pool)
+                    balances[i] -= paid
+                    pool -= paid
+                }
+            }
+        }
+        return (months, interest)
+    }
+
+    private var plan: (months: Int, interest: Double)? {
+        let budget = Money.parse(budgetText) ?? 0
+        guard budget > 0, !activeDebts.isEmpty else { return nil }
+        return simulate(payment: budget)
+    }
+
+    private var minimumPlan: (months: Int, interest: Double)? {
+        guard !activeDebts.isEmpty else { return nil }
+        return simulate(payment: defaultBudget)
     }
 
     var body: some View {
         ScreenScroll {
-            VStack(alignment: .leading, spacing: 20) {
-                HStack {
-                    Button { dismiss() } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundStyle(Theme.textSecondary)
-                            .frame(width: 44, height: 44)
-                            .background(Theme.surfaceAlt)
-                            .clipShape(Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Fechar")
-                    Spacer()
-                    Text("Seu plano para ficar no verdinho")
-                        .font(Fonts.headline(18))
-                        .foregroundStyle(Theme.text)
-                    Spacer()
-                    Color.clear.frame(width: 44, height: 44)
-                }
-
+            VStack(alignment: .leading, spacing: 18) {
                 AppCard {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Quanto você consegue destinar por mês para suas dívidas?")
-                            .font(Fonts.bodyMedium())
-                            .foregroundStyle(Theme.text)
-                        CurrencyField(value: $monthlyAmount, placeholder: "1.200")
-                    }
-                }
-
-                Text("Escolha sua estratégia")
-                    .font(Fonts.headline(18))
-                    .foregroundStyle(Theme.text)
-
-                ForEach(strategies.indices, id: \.self) { index in
-                    Button {
-                        withAnimation { strategy = index }
-                    } label: {
-                        HStack(spacing: 14) {
-                            Image(systemName: strategies[index].icon)
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundStyle(strategy == index ? Theme.background : Theme.textSecondary)
-                                .frame(width: 40, height: 40)
-                                .background(strategy == index ? Theme.green : Theme.surfaceAlt)
-                                .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(strategies[index].name)
-                                    .font(Fonts.bodyMedium())
-                                    .foregroundStyle(Theme.text)
-                                Text(strategies[index].desc)
-                                    .font(Fonts.caption(12))
-                                    .foregroundStyle(Theme.textSecondary)
+                    VStack(alignment: .leading, spacing: 14) {
+                        SectionTitle("Estratégia")
+                        HStack(spacing: 8) {
+                            ForEach(strategies.indices, id: \.self) { index in
+                                Button {
+                                    withAnimation { strategy = index }
+                                } label: {
+                                    VStack(spacing: 4) {
+                                        Text(strategies[index])
+                                            .font(Fonts.captionStrong())
+                                            .foregroundStyle(strategy == index ? Theme.background : Theme.text)
+                                        Image(systemName: index == 0 ? "arrow.down.right.circle.fill" : "snowflake")
+                                            .font(.system(size: 13))
+                                            .foregroundStyle(strategy == index ? Theme.background : Theme.textTertiary)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                                    .background(strategy == index ? Theme.green : Theme.surfaceAlt)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                }
+                                .buttonStyle(.plain)
                             }
-                            Spacer()
-                            Image(systemName: strategy == index ? "checkmark.circle.fill" : "circle")
-                                .font(.system(size: 22))
-                                .foregroundStyle(strategy == index ? Theme.green : Theme.borderStrong)
                         }
-                        .padding(14)
-                        .background(Theme.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .stroke(strategy == index ? Theme.green : Theme.border, lineWidth: strategy == index ? 1.5 : 1)
-                        )
+                        Text(strategyDescriptions[strategy])
+                            .font(Fonts.caption(12))
+                            .foregroundStyle(Theme.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    .buttonStyle(.plain)
                 }
 
                 AppCard {
                     VStack(alignment: .leading, spacing: 14) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Previsão de quitação")
-                                    .font(Fonts.caption())
-                                    .foregroundStyle(Theme.textSecondary)
-                                Text("\(months) meses")
-                                    .font(Fonts.headline(22))
-                                    .foregroundStyle(Theme.text)
-                            }
-                            Spacer()
-                            VStack(alignment: .trailing, spacing: 2) {
-                                Text("Economia estimada")
-                                    .font(Fonts.caption())
-                                    .foregroundStyle(Theme.textSecondary)
-                                Text(Money.format(estimatedEconomy))
-                                    .font(Fonts.headline(22))
-                                    .foregroundStyle(Theme.green)
-                            }
-                        }
-                        Divider().overlay(Theme.border)
-                        Text("Timeline de quitação")
-                            .font(Fonts.captionStrong())
+                        SectionTitle("Aporte mensal")
+                        Text("Quanto você consegue dedicar às dívidas por mês?")
+                            .font(Fonts.caption())
                             .foregroundStyle(Theme.textSecondary)
-                        payoffTimeline
-                    }
-                }
-
-PrimaryButton("Iniciar plano", icon: "leaf.fill") {
-            startPlan()
-        }
-            }
-        }
-        .background(Theme.background.ignoresSafeArea())
-        .preferredColorScheme(.dark)
-    }
-
-    /// Cria uma meta de quitação real no app e encerra o plano.
-    private func startPlan() {
-        guard let amount = Money.parse(monthlyAmount), amount > 0 else { return }
-        app.goals.insert(
-            Goal(
-                kind: .debt,
-                title: "Quitar \(debt.creditor)",
-                emoji: "banknote.fill",
-                target: debt.remainingBalance,
-                saved: 0,
-                monthlyContribution: amount
-            ),
-            at: 0
-        )
-        Haptics.success()
-        dismiss()
-    }
-
-    private var payoffTimeline: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            ForEach(0..<3, id: \.self) { index in
-                HStack(spacing: 12) {
-                    ZStack {
-                        Circle()
-                            .fill(index == 0 ? Theme.green : Theme.surfaceAlt)
-                            .frame(width: 28, height: 28)
-                        if index == 0 {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundStyle(Theme.background)
-                        } else {
-                            Text("\(index + 1)")
-                                .font(Fonts.captionStrong(12))
-                                .foregroundStyle(Theme.textSecondary)
-                        }
-                    }
-                    if index < 2 {
-                        Rectangle()
-                            .fill(Theme.border)
-                            .frame(width: 2, height: 14)
-                    }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(timelineTitles[index])
-                            .font(Fonts.bodyMedium())
-                            .foregroundStyle(Theme.text)
-                        Text(timelineSubtitles[index])
+                        CurrencyField(value: $budgetText, placeholder: String(format: "%.2f", defaultBudget))
+                        Text("Valor mínimo sugerido: \(Money.format(defaultBudget)) (parcelas atuais)")
                             .font(Fonts.caption(12))
-                            .foregroundStyle(Theme.textSecondary)
+                            .foregroundStyle(Theme.textTertiary)
                     }
-                    Spacer()
+                }
+
+                if let plan {
+                    AppCard {
+                        VStack(alignment: .leading, spacing: 14) {
+                            SectionTitle("Resultado")
+                            VStack(spacing: 10) {
+                                IndicatorRow(icon: "calendar", title: "Prazo estimado",
+                                             value: plan.months > 1 ? "\(plan.months) meses" : "1 mês",
+                                             color: Theme.green)
+                                IndicatorRow(icon: "percent", title: "Juros estimados",
+                                             value: Money.format(plan.interest), color: Theme.warning)
+                                if let minimum = minimumPlan, minimum.interest > plan.interest {
+                                    IndicatorRow(icon: "sparkles", title: "Economia vs. parcelas atuais",
+                                                 value: Money.format(minimum.interest - plan.interest),
+                                                 color: Theme.greenBright)
+                                }
+                            }
+                            if plan.months > 0 {
+                                Text("Quitação projetada para \(Calendar.current.date(byAdding: .month, value: plan.months, to: .now)?.formatted(.dateTime.month().year()) ?? "—")")
+                                    .font(Fonts.caption(12))
+                                    .foregroundStyle(Theme.textSecondary)
+                            }
+                        }
+                    }
+
+                    AppCard {
+                        VStack(alignment: .leading, spacing: 12) {
+                            SectionTitle("Ordem de pagamento")
+                            ForEach(Array(orderedDebts.enumerated()), id: \.element.id) { index, debt in
+                                HStack(spacing: 12) {
+                                    Text("\(index + 1)")
+                                        .font(Fonts.captionStrong())
+                                        .foregroundStyle(Theme.background)
+                                        .frame(width: 26, height: 26)
+                                        .background(Theme.green)
+                                        .clipShape(Circle())
+                                    Image(systemName: debt.type.icon)
+                                        .font(.system(size: 14))
+                                        .foregroundStyle(Theme.textSecondary)
+                                        .frame(width: 26)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(debt.creditor)
+                                            .font(Fonts.bodyMedium())
+                                            .foregroundStyle(Theme.text)
+                                        Text("\(Money.format(debt.remainingBalance)) · \(String(format: "%.0f", debt.interestRate))% a.a.")
+                                            .font(Fonts.caption(12))
+                                            .foregroundStyle(Theme.textSecondary)
+                                    }
+                                    Spacer()
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    EmptyState(
+                        icon: "chart.line.uptrend.xyaxis",
+                        title: "Defina um aporte",
+                        message: activeDebts.isEmpty
+                            ? "Você não possui dívidas em aberto. 🎉"
+                            : "Informe quanto quer pagar por mês para simular a quitação."
+                    )
                 }
             }
         }
-    }
-
-    private var timelineTitles: [String] {
-        strategy == 0
-            ? ["Dívida de maior juros", "Dívida de juros médios", "Dívida de menor juros"]
-            : ["Dívida de menor saldo", "Dívida de saldo médio", "Dívida de maior saldo"]
-    }
-
-    private var timelineSubtitles: [String] {
-        let first = strategy == 0 ? debt.remainingBalance * 0.26 : debt.remainingBalance * 0.16
-        let second = strategy == 0 ? debt.remainingBalance * 0.47 : debt.remainingBalance * 0.39
-        return [
-            "\(Int(months * 6 / 10)) meses • \(Money.format(first))",
-            "\(Int(months * 8 / 10)) meses • \(Money.format(second))",
-            "\(months) meses • \(Money.format(debt.remainingBalance))",
-        ]
+        .navigationTitle("Plano de quitação")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            if budgetText.isEmpty {
+                budgetText = String(format: "%.2f", defaultBudget)
+            }
+        }
     }
 }

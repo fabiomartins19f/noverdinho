@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - Tab bar personalizada (Início | Dívidas | + | Planejamento | Perfil)
+// MARK: - Tab bar inferior (Início | Dívidas | + | Planejamento | Perfil)
 
 struct RootTabView: View {
     @EnvironmentObject var app: AppState
@@ -18,8 +18,6 @@ struct RootTabView: View {
 
             CustomTabBar(selected: $app.selectedTab) {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
-                    // "+" abre o bottom sheet de adicionar (receita, despesa,
-                    // dívida, cartão ou meta).
                     app.showAddSheet = true
                 }
             }
@@ -37,17 +35,17 @@ struct CustomTabBar: View {
                 tabButton(tab)
             }
 
-            // Botão central "+" destacado
             Button(action: onAdd) {
                 Image(systemName: "plus")
                     .font(.system(size: 22, weight: .bold))
                     .foregroundStyle(Theme.background)
-                    .frame(width: 56, height: 56)
+                    .frame(width: 54, height: 54)
                     .background(Theme.greenGradient)
                     .clipShape(Circle())
-                    .shadow(color: Theme.green.opacity(0.4), radius: 12, y: 4)
+                    .shadow(color: Theme.green.opacity(0.45), radius: 14, y: 4)
             }
             .offset(y: -14)
+            .buttonStyle(.plain)
             .accessibilityLabel("Adicionar receita, despesa, dívida, cartão ou meta")
 
             ForEach([Tab.planning, Tab.profile], id: \.self) { tab in
@@ -55,7 +53,7 @@ struct CustomTabBar: View {
             }
         }
         .padding(.top, 10)
-        .padding(.bottom, 4)
+        .padding(.bottom, 6)
         .background(
             Theme.surface.opacity(0.92)
                 .background(.ultraThinMaterial)
@@ -81,12 +79,13 @@ struct CustomTabBar: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(tab.rawValue)
     }
 }
 
-// MARK: - Navegação do diagnóstico (modal de adicionar/onboarding)
+// MARK: - Modal de adicionar (botão "+")
 
-struct DiagnosticFlowView: View {
+struct AddSheetContainer: View {
     @EnvironmentObject var app: AppState
 
     var body: some View {
@@ -129,7 +128,7 @@ struct NoVerdinhoApp: App {
                     ZStack {
                         RootTabView()
                         if app.showAddSheet {
-                            DiagnosticFlowView()
+                            AddSheetContainer()
                         }
                     }
                 }

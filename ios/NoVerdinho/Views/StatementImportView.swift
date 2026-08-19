@@ -1,311 +1,179 @@
 import SwiftUI
 import UniformTypeIdentifiers
-import PDFKit
 
-// MARK: - Importação de extrato da fatura
-//
-// Fluxo: o usuário cola o texto do extrato OU importa um PDF (via PDFKit).
-// O StatementParser reconhece as linhas e o app sugere o cartão pelo nome.
-// Depois de confirmar, as compras entram no detalhe do cartão.
+// MARK: - TELA: Importar extrato da fatura
 
 struct StatementImportView: View {
-    let card: CreditCard
     @EnvironmentObject var app: AppState
-    @Environment(\.dismiss) private var dismiss
-
-    @State private var pastedText = ""
-    @State private var showPDFImporter = false
-    @State private var pdfFileName: String?
-    @State private var result: StatementParseResult?
-    @State private var selectedCardName: String
-    @State private var showImportConfirmation = false
-    @State private var importTitle = "Extrato adicionado"
-    @State private var importMessage = ""
-
-    init(card: CreditCard) {
-        self.card = card
-        _selectedCardName = State(initialValue: card.name)
-    }
-
-    /// Cartão selecionado para receber a fatura (segue a cor de marca dele).
-    private var selectedCard: CreditCard? {
-        app.cards.first { $0.name == selectedCardName }
-    }
+    @State private var showFilePicker = false
+    @State private var parseResult: StatementParseResult?
+    @State private var targetCard: CreditCard?
+    @State private var importMessage: String?
+    @State private var saved = false
 
     var body: some View {
         ScreenScroll {
-            VStack(alignment: .leading, spacing: 20) {
-                header
-                sourceTabs
-                inputArea
-                if let result {
-                    preview(result)
-                }
-            }
-        }
-        .navigationTitle("Extrato da fatura")
-        .navigationBarTitleDisplayMode(.inline)
-        .fileImporter(
-            isPresented: $showPDFImporter,
-            allowedContentTypes: [.pdf],
-            allowsMultipleSelection: false
-        ) { result in
-            handlePDFImport(result)
-        }
-        .alert(importTitle, isPresented: $showImportConfirmation) {
-            Button("OK") { dismiss() }
-        } message: {
-            Text(importMessage)
-        }
-    }
-
-    // MARK: Subviews
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Cole o texto ou importe o PDF da fatura")
-                .font(Fonts.headline(18))
-                .foregroundStyle(Theme.text)
-            Text("O app reconhece as compras automaticamente — datas, descrições e valores.")
-                .font(Fonts.caption())
-                .foregroundStyle(Theme.textSecondary)
-        }
-    }
-
-    private var sourceTabs: some View {
-        HStack(spacing: 8) {
-            // Aba ativa = quando nenhum PDF foi escolhido ainda.
-            let showingText = pastedText.isEmpty && pdfFileName == nil
-
-            Button {
-                withAnimation { pastedText = ""; pdfFileName = nil; result = nil }
-            } label: {
-                Label("Colar texto", systemImage: "doc.plaintext")
-                    .font(Fonts.captionStrong())
-                    .foregroundStyle(showingText ? Theme.background : Theme.text)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(showingText ? Theme.green : Theme.surfaceAlt)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            }
-            .buttonStyle(.plain)
-
-            Button {
-                showPDFImporter = true
-            } label: {
-                Label("Importar PDF", systemImage: "doc.fill")
-                    .font(Fonts.captionStrong())
-                    .foregroundStyle(showingText ? Theme.text : Theme.background)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(showingText ? AnyShapeStyle(Theme.surfaceAlt) : AnyShapeStyle(selectedCard?.brandGradient ?? card.brandGradient))
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    @ViewBuilder
-    private var inputArea: some View {
-        if pastedText.isEmpty && pdfFileName == nil {
-            // Área de colar texto
-            TextEditor(text: $pastedText)
-                .font(Fonts.caption(13))
-                .foregroundStyle(Theme.text)
-                .scrollContentBackground(.hidden)
-                .background(Theme.surfaceAlt)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(Theme.borderStrong, lineWidth: 1)
-                )
-                .frame(height: 140)
-                .overlay(alignment: .topLeading) {
-                    if pastedText.isEmpty {
-                        Text("Ex.: 01 AGO MERCADO EXTRA R$ 98,50\n02 AGO UBER R$ 23,80\n03 AGO AMAZON R$ 145,90")
-                            .font(Fonts.caption(12))
-                            .foregroundStyle(Theme.textTertiary)
-                            .padding(10)
-                    }
-                }
-
-            PrimaryButton("Reconhecer compras", icon: "sparkles.magnifyingglass") {
-                recognize(pastedText)
-            }
-            .disabled(pastedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-        } else if let pdfName = pdfFileName {
-            HStack(spacing: 12) {
-                Image(systemName: "doc.richtext.fill")
-                    .font(.system(size: 20))
-                    .foregroundStyle(selectedCard?.brandColor ?? card.brandColor)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(pdfName)
-                        .font(Fonts.bodyMedium())
-                        .foregroundStyle(Theme.text)
-                        .lineLimit(1)
-                    Text("Pronto para reconhecer")
-                        .font(Fonts.caption(12))
-                        .foregroundStyle(Theme.textSecondary)
-                }
-                Spacer()
-                Button {
-                    pdfFileName = nil
-                    result = nil
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 22))
-                        .foregroundStyle(Theme.textTertiary)
-                }
-                .buttonStyle(.plain)
-                .frame(width: 44, height: 44)
-                .contentShape(Rectangle())
-                .accessibilityLabel("Remover PDF")
-            }
-            .padding(14)
-            .background(Theme.surfaceAlt)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        }
-    }
-
-    @ViewBuilder
-    private func preview(_ result: StatementParseResult) -> some View {
-        // Cartão sugerido
-        AppCard {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Cartão identificado")
-                    .font(Fonts.captionStrong())
-                    .foregroundStyle(Theme.textSecondary)
-                Menu {
-                    ForEach(app.cards) { card in
-                        Button(card.name) {
-                            selectedCardName = card.name
+            VStack(alignment: .leading, spacing: 18) {
+                AppCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "doc.text.magnifyingglass")
+                                .font(.system(size: 20))
+                                .foregroundStyle(Theme.green)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Importar extrato")
+                                    .font(Fonts.bodyMedium())
+                                    .foregroundStyle(Theme.text)
+                                Text("Selecione o arquivo .txt ou .pdf da fatura. O No Verdinho reconhece as compras automaticamente.")
+                                    .font(Fonts.caption(12))
+                                    .foregroundStyle(Theme.textSecondary)
+                            }
+                        }
+                        PrimaryButton("Escolher arquivo", icon: "folder.fill") {
+                            showFilePicker = true
                         }
                     }
-                } label: {
-                    HStack(spacing: 8) {
-                        Circle()
-                            .fill(app.cards.first { $0.name == selectedCardName }?.brandColor ?? Theme.green)
-                            .frame(width: 10, height: 10)
-                        Text(selectedCardName)
-                            .font(Fonts.bodyMedium())
-                            .foregroundStyle(Theme.text)
-                        Spacer()
-                        Image(systemName: "chevron.up.chevron.down")
-                            .font(.system(size: 12))
-                            .foregroundStyle(Theme.textTertiary)
-                    }
+                }
+                .fileImporter(
+                    isPresented: $showFilePicker,
+                    allowedContentTypes: [.plainText, .pdf, .json, .data],
+                    allowsMultipleSelection: false
+                ) { result in
+                    handleImport(result)
+                }
+
+                if let parseResult {
+                    importSummary(parseResult)
                 }
             }
         }
+        .navigationTitle("Importar extrato")
+        .navigationBarTitleDisplayMode(.inline)
+    }
 
-        // Linhas reconhecidas
+    @ViewBuilder
+    private func importSummary(_ result: StatementParseResult) -> some View {
         AppCard {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 14) {
+                SectionTitle("Resultado da leitura")
+
+                if let detected = result.detectedCardName {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(Theme.green)
+                        Text("Cartão detectado: \(detected.capitalized)")
+                            .font(Fonts.captionStrong())
+                            .foregroundStyle(Theme.text)
+                    }
+                }
+
                 HStack {
-                    Text("Compras reconhecidas")
-                        .font(Fonts.captionStrong())
+                    Text("\(result.lines.filter { !$0.isAdjustment }.count) compras reconhecidas")
+                        .font(Fonts.caption())
                         .foregroundStyle(Theme.textSecondary)
                     Spacer()
-                    Text("\(result.lines.count) linhas • \(Money.format(result.totalPurchases))")
-                        .font(Fonts.captionStrong(12))
-                        .foregroundStyle(Theme.green)
+                    Text(Money.format(result.totalPurchases))
+                        .font(Fonts.captionStrong())
+                        .foregroundStyle(Theme.text)
                 }
 
+                if let message = importMessage {
+                    HStack(spacing: 8) {
+                        Image(systemName: "info.circle.fill")
+                            .font(.system(size: 13))
+                        Text(message)
+                            .font(Fonts.caption(12))
+                    }
+                    .foregroundStyle(Theme.warning)
+                }
+
+                if !result.lines.isEmpty && !saved {
+                    PrimaryButton("Salvar importação", icon: "checkmark.circle.fill") {
+                        save(result)
+                    }
+                }
+            }
+        }
+
+        AppCard {
+            VStack(alignment: .leading, spacing: 10) {
+                SectionTitle("Compras reconhecidas")
                 ForEach(result.lines) { line in
                     HStack(spacing: 10) {
-                        if line.isAdjustment {
-                            Image(systemName: "arrow.uturn.backward.circle.fill")
-                                .foregroundStyle(Theme.warning)
-                        } else {
-                            Image(systemName: "bag.fill")
-                                .foregroundStyle(selectedCard?.brandColor ?? card.brandColor)
-                        }
-                        VStack(alignment: .leading, spacing: 2) {
+                        Text(line.isAdjustment ? "doc.badge.ellipsis" : "cart.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(line.isAdjustment ? Theme.textTertiary : Theme.green)
+                            .frame(width: 22)
+                        VStack(alignment: .leading, spacing: 1) {
                             Text(line.description)
-                                .font(Fonts.caption(13))
-                                .foregroundStyle(Theme.text)
+                                .font(Fonts.caption())
+                                .foregroundStyle(line.isAdjustment ? Theme.textTertiary : Theme.text)
                                 .lineLimit(1)
                             if let date = line.date {
-                                Text(date.formatted(.dateTime.day().month().year()))
+                                Text(date.formatted(.dateTime.day().month()))
                                     .font(Fonts.caption(11))
                                     .foregroundStyle(Theme.textTertiary)
                             }
                         }
                         Spacer()
                         Text(Money.format(line.amount))
-                            .font(Fonts.captionStrong(13))
-                            .foregroundStyle(line.isAdjustment ? Theme.warning : Theme.text)
+                            .font(Fonts.caption())
+                            .foregroundStyle(line.isAdjustment ? Theme.textTertiary : Theme.text)
                     }
                 }
             }
         }
-
-        PrimaryButton("Adicionar à fatura (\(selectedCardName))", icon: "plus") {
-            let added = addStatementToCard(result)
-            importTitle = added ? "Extrato adicionado" : "Nada reconhecido"
-            importMessage = added
-                ? "As compras reconhecidas foram adicionadas à fatura do \(selectedCardName)."
-                : "Nenhuma compra reconhecida no texto. Verifique se o extrato foi colado por completo."
-            showImportConfirmation = true
-        }
-
-        Text("Pagamentos, encargos e totais não são contados como compras.")
-            .font(Fonts.caption(12))
-            .foregroundStyle(Theme.textTertiary)
-            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    // MARK: Ações
+    // MARK: Importação e salvamento
 
-    private func recognize(_ text: String) {
-        let parsed = StatementParser.parse(text)
-        if let detected = parsed.detectedCardName,
-           app.cards.contains(where: { $0.name.lowercased().contains(detected) }) {
-            selectedCardName = app.cards.first { $0.name.lowercased().contains(detected) }!.name
+    private func handleImport(_ result: Result<[URL], Error>) {
+        guard case .success(let urls) = result, let url = urls.first else { return }
+        guard url.startAccessingSecurityScopedResource() else {
+            importMessage = "Não foi possível acessar o arquivo."
+            return
         }
-        result = parsed
-    }
-    private func handlePDFImport(_ result: Result<[URL], Error>) {
-        switch result {
-        case .failure(let error):
-            importMessage = "Não foi possível ler o PDF: \(error.localizedDescription)"
-            showImportConfirmation = true
-        case .success(let urls):
-            guard let url = urls.first, url.startAccessingSecurityScopedResource() else {
-                importMessage = "Não foi possível acessar o arquivo selecionado."
-                showImportConfirmation = true
-                return
+        defer { url.stopAccessingSecurityScopedResource() }
+
+        do {
+            let text = try String(contentsOf: url, encoding: .utf8)
+            let parsed = StatementParser.parse(text)
+
+            importMessage = nil
+            saved = false
+
+            // Vincula ao cartão detectado ou ao primeiro cartão do usuário.
+            if let detected = parsed.detectedCardName {
+                if let card = app.cards.first(where: {
+                    $0.name.lowercased().contains(detected) || $0.institution.lowercased().contains(detected)
+                }) {
+                    targetCard = card
+                } else {
+                    importMessage = "Nenhum cartão seu bate com \"\(detected.capitalized)\". A importação ficará sem vínculo."
+                }
+            } else {
+                importMessage = app.cards.isEmpty
+                    ? "Você ainda não tem cartões cadastrados."
+                    : "Nenhum cartão detectado no extrato. As compras ficarão sem vínculo."
             }
-            defer { url.stopAccessingSecurityScopedResource() }
-            guard let document = PDFDocument(url: url), let text = document.string else {
-                importMessage = "Este PDF não contém texto legível. Tente copiar o extrato como texto."
-                showImportConfirmation = true
-                return
-            }
-            pdfFileName = url.lastPathComponent
-            recognize(text)
+
+            parseResult = parsed
+            Haptics.success()
+        } catch {
+            importMessage = "Não foi possível ler o arquivo. Tente exportar o extrato em .txt."
         }
     }
 
-    /// Converte as linhas reconhecidas em compras da fatura do cartão e
-    /// atualiza o valor usado/limite do cartão no AppState (mock).
-    /// Retorna true quando ao menos uma compra foi adicionada.
-    @discardableResult
-    private func addStatementToCard(_ result: StatementParseResult) -> Bool {
-        guard let cardIndex = app.cards.firstIndex(where: { $0.name == selectedCardName }) else { return false }
+    private func save(_ result: StatementParseResult) {
+        var card = targetCard
+        if card == nil, let first = app.cards.first {
+            card = first
+        }
 
-        var updated = app.cards[cardIndex]
         let purchases = result.lines
             .filter { !$0.isAdjustment }
-            .compactMap { line -> CardPurchase? in
-                // Evita duplicar compras já importadas (mesmo nome, valor e data).
-                let alreadyImported = updated.statementItems.contains { existing in
-                    existing.name == line.description
-                        && abs(existing.amount - line.amount) < 0.01
-                        && Calendar.current.isDate(existing.date, inSameDayAs: line.date ?? .now)
-                }
-                guard !alreadyImported else { return nil }
-                return CardPurchase(
+            .map { line in
+                CardPurchase(
                     name: line.description,
                     amount: line.amount,
                     installments: 1,
@@ -315,18 +183,11 @@ struct StatementImportView: View {
                 )
             }
 
-        // Só adiciona quando há pelo menos uma compra reconhecida.
-        guard !purchases.isEmpty else {
-            return false
+        if let card, let index = app.cards.firstIndex(where: { $0.id == card.id }) {
+            app.cards[index].statementItems.append(contentsOf: purchases)
         }
 
-        updated.statementItems.append(contentsOf: purchases)
-        let total = purchases.reduce(0) { $0 + $1.amount }
-        // O extrato representa o valor real da fatura/limite usado.
-        updated.currentInvoice += total
-        updated.used = min(updated.used + total, updated.limit)
-        app.cards[cardIndex] = updated
+        saved = true
         Haptics.success()
-        return true
     }
 }

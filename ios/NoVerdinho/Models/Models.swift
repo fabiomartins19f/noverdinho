@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 import UserNotifications
 
-// MARK: - Tipos base
+// MARK: - Dívida
 
 enum DebtType: String, CaseIterable, Codable {
     case creditCard = "Cartão de crédito"
@@ -22,6 +22,22 @@ enum DebtType: String, CaseIterable, Codable {
 
 enum DebtStatus: String, Codable {
     case paidOff, onTime, overdue
+
+    var label: String {
+        switch self {
+        case .paidOff: "Quitada"
+        case .onTime: "Em dia"
+        case .overdue: "Atrasada"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .paidOff: Theme.green
+        case .onTime: Theme.info
+        case .overdue: Theme.danger
+        }
+    }
 }
 
 enum DebtPriority: String, Codable {
@@ -72,7 +88,6 @@ struct CreditCard: Identifiable, Codable {
     var available: Double { limit - used }
     var utilization: Double { limit > 0 ? used / limit : 0 }
 
-    /// Cor de marca do cartão (estilo Nubank), derivada do nome do cartão.
     var brandColor: Color {
         switch name.lowercased() {
         case let n where n.contains("nubank"): Color(hex: "820AD1")
@@ -82,12 +97,11 @@ struct CreditCard: Identifiable, Codable {
         case let n where n.contains("santander"): Color(hex: "EC0000")
         case let n where n.contains("bradesco"): Color(hex: "CC092F")
         case let n where n.contains("caixa"): Color(hex: "005CA9")
-        case let n where n.contains("bb ") || n.contains("brasil"): Color(hex: "FAF33E")
+        case let n where n.contains("bb ") || n.contains("brasil"): Color(hex: "D8C21A")
         default: Theme.green
         }
     }
 
-    /// Gradiente da marca usado na barra de limite e nos destaques.
     var brandGradient: LinearGradient {
         LinearGradient(
             colors: [brandColor.opacity(0.9), brandColor],
@@ -106,6 +120,8 @@ struct CardPurchase: Identifiable, Codable {
     var fromStatement: Bool = false
 }
 
+// MARK: - Transação
+
 struct Transaction: Identifiable, Codable {
     enum Kind: String, Codable { case income, expense, transfer }
     let id = UUID()
@@ -116,6 +132,8 @@ struct Transaction: Identifiable, Codable {
     let date: Date
 }
 
+// MARK: - Compromisso futuro
+
 struct UpcomingPayment: Identifiable {
     let id = UUID()
     let name: String
@@ -125,6 +143,7 @@ struct UpcomingPayment: Identifiable {
 
     enum PaymentKind {
         case bill, invoice, installment
+
         var color: Color { self == .bill ? Theme.warning : Theme.info }
         var icon: String {
             switch self {
@@ -134,13 +153,19 @@ struct UpcomingPayment: Identifiable {
             }
         }
     }
+
+    /// Dias restantes até o vencimento.
+    var daysRemaining: Int {
+        Calendar.current.dateComponents([.day], from: .now, to: date).day ?? 0
+    }
 }
+
+// MARK: - Orçamento
 
 struct BudgetCategory: Identifiable, Codable {
     let id = UUID()
     let name: String
     let icon: String
-    /// Cor em hex ("FFB84D") para permitir persistência.
     let colorHex: String
     var limit: Double
     var spent: Double
@@ -148,6 +173,8 @@ struct BudgetCategory: Identifiable, Codable {
     var color: Color { Color(hex: colorHex) }
     var progress: Double { limit > 0 ? spent / limit : 0 }
 }
+
+// MARK: - Meta
 
 struct Goal: Identifiable, Codable {
     enum Kind: String, Codable, CaseIterable {
@@ -162,7 +189,6 @@ struct Goal: Identifiable, Codable {
             }
         }
 
-        /// Símbolo SF usado como ícone da meta.
         var icon: String {
             switch self {
             case .debt: "banknote.fill"
@@ -189,6 +215,8 @@ struct Goal: Identifiable, Codable {
     }
 }
 
+// MARK: - Dados auxiliares (insights, relatórios, etc.)
+
 struct InsightCard: Identifiable {
     enum Tone { case positive, warning, action }
     let id = UUID()
@@ -213,10 +241,16 @@ struct MonthlySeriesPoint: Identifiable {
 }
 
 struct CanISpendResult {
-    enum Verdict: String { case ok = "Compra compatível", caution = "Cuidado", notRecommended = "Não recomendado" }
+    enum Verdict: String {
+        case ok = "Compra compatível"
+        case caution = "Cuidado"
+        case notRecommended = "Não recomendado"
+    }
+
     let verdict: Verdict
     let reason: String
     let icon: String
+
     var color: Color {
         switch verdict {
         case .ok: Theme.green
@@ -245,7 +279,7 @@ struct GreenLevel {
     }
 }
 
-// MARK: - Tipos de adição (bottom sheet "+")
+// MARK: - Tipos de adição (botão "+")
 
 enum AddSheetType: String, CaseIterable {
     case income = "Receita"
@@ -275,10 +309,9 @@ enum AddSheetType: String, CaseIterable {
     }
 }
 
-// MARK: - App State (mock + persistência local)
+// MARK: - App State (persistência local)
 
 final class AppState: ObservableObject {
-    /// Chave usada no UserDefaults para guardar os dados do usuário.
     private static let storageKey = "noverdinho.persisted"
 
     @Published var onboarded = false { didSet { save() } }
@@ -286,10 +319,8 @@ final class AppState: ObservableObject {
     @Published var diagnosticDone = false { didSet { save() } }
     @Published var userName = "Usuário" { didSet { save() } }
     @Published var userEmail = "usuario@email.com" { didSet { save() } }
-    @Published var showAddSheet = false
-    @Published var addPreset: AddSheetType?
     @Published var balance: Double = 3240 { didSet { save() } }
-    @Published var selectedTab: Tab = .home
+    @Published var levelScore = 72 { didSet { save() } }
     @Published var transactions: [Transaction] { didSet { save() } }
     @Published var debts: [Debt] { didSet { save() } }
     @Published var cards: [CreditCard] { didSet { save() } }
@@ -300,6 +331,10 @@ final class AppState: ObservableObject {
         NotificationScheduler.syncReminders(for: self)
     } }
 
+    @Published var showAddSheet = false
+    @Published var addPreset: AddSheetType?
+    @Published var selectedTab: Tab = .home
+
     init() {
         transactions = Self.defaultTransactions
         debts = Self.defaultDebts
@@ -309,27 +344,7 @@ final class AppState: ObservableObject {
         load()
     }
 
-    // MARK: Dados estáticos (demo)
-
-    /// Pontuação do Nível No Verdinho (vem do diagnóstico e fica salva).
-    @Published var levelScore = 72 { didSet { save() } }
-
-    private static let levelEvolution: [MonthlySeriesPoint] = [
-        .init(label: "Mar", value: 41), .init(label: "Abr", value: 46),
-        .init(label: "Mai", value: 49), .init(label: "Jun", value: 55),
-        .init(label: "Jul", value: 62), .init(label: "Ago", value: 72),
-    ]
-
-    var level: GreenLevel {
-        GreenLevel(
-            score: levelScore,
-            delta: 8,
-            evolution: Self.levelEvolution,
-            message: levelScore >= 70
-                ? "Você avançou 8 pontos este mês"
-                : "Você está no caminho certo para o verdinho"
-        )
-    }
+    // MARK: Dados de demonstração
 
     static let defaultTransactions: [Transaction] = [
         .init(kind: .income, name: "Salário", category: "Salário", amount: 7500, date: .now.addingTimeInterval(-86400 * 2)),
@@ -355,8 +370,6 @@ final class AppState: ObservableObject {
               dueDate: .now.addingTimeInterval(-86400 * 12), priority: .medium, status: .overdue),
     ]
 
-    var totalDebt: Double { debts.reduce(0) { $0 + $1.remainingBalance } }
-
     static let defaultCards: [CreditCard] = [
         .init(name: "Nubank", institution: "Nu Pagamentos", lastDigits: "4821", limit: 8000, used: 3850,
               currentInvoice: 1850, dueDay: 12,
@@ -379,13 +392,6 @@ final class AppState: ObservableObject {
         .init(kind: .travel, title: "Viagem", emoji: "airplane", target: 8000, saved: 3400, monthlyContribution: 500),
     ]
 
-    let upcomingPayments: [UpcomingPayment] = [
-        .init(name: "Fatura Nubank", amount: 1850, date: .now.addingTimeInterval(86400 * 4), kind: .invoice),
-        .init(name: "Aluguel", amount: 1800, date: .now.addingTimeInterval(86400 * 7), kind: .bill),
-        .init(name: "Parcela Cartão Nubank", amount: 360, date: .now.addingTimeInterval(86400 * 9), kind: .installment),
-        .init(name: "Parcela Empréstimo", amount: 780, date: .now.addingTimeInterval(86400 * 15), kind: .installment),
-    ]
-
     static let defaultBudget: [BudgetCategory] = [
         .init(name: "Moradia", icon: "house.fill", colorHex: "FFB84D", limit: 2200, spent: 1950),
         .init(name: "Alimentação", icon: "cart.fill", colorHex: "2FE6A0", limit: 1200, spent: 980),
@@ -395,11 +401,89 @@ final class AppState: ObservableObject {
         .init(name: "Outros", icon: "ellipsis.circle.fill", colorHex: "7A8A80", limit: 600, spent: 420),
     ]
 
-    let insights: [InsightCard] = [
-        .init(title: "Alimentação em queda", message: "Você gastou 18% menos com alimentação este mês.", action: "Ver detalhes", tone: .positive),
-        .init(title: "Cartão pesado", message: "Seu cartão Nubank representa uma parcela elevada da sua renda.", action: "Ver cartão", tone: .warning),
-        .init(title: "Antecipe sua quitação", message: "Adicionar R$ 200 ao pagamento da dívida principal pode antecipar sua quitação em 5 meses.", action: "Ajustar plano", tone: .action),
-        .init(title: "Meta próxima", message: "Faltam R$ 4.600 para sua reserva de emergência.", action: "Ver metas", tone: .positive),
+    // MARK: Dados derivados
+
+    var totalDebt: Double { debts.reduce(0) { $0 + $1.remainingBalance } }
+
+    /// Registra um pagamento em uma dívida: reduz saldo, avança parcelas e
+    /// marca como quitada quando o saldo zera.
+    func recordPayment(_ amount: Double, on debt: Debt) {
+        guard amount > 0, debt.status != .paidOff else { return }
+        let newPaid = min(debt.paidAmount + amount, debt.originalAmount)
+        let newBalance = max(debt.originalAmount - newPaid, 0)
+        let isFull = newBalance <= 0.01
+        let updated = Debt(
+            type: debt.type, creditor: debt.creditor,
+            originalAmount: debt.originalAmount, paidAmount: newPaid,
+            remainingBalance: isFull ? 0 : newBalance,
+            interestRate: debt.interestRate, installment: debt.installment,
+            installmentCount: debt.installmentCount,
+            paidInstallments: min(debt.paidInstallments + (amount >= debt.installment ? 1 : 0), debt.installmentCount),
+            dueDate: debt.dueDate, priority: debt.priority,
+            status: isFull ? .paidOff : debt.status
+        )
+        if let index = debts.firstIndex(where: { $0.id == debt.id }) {
+            debts[index] = updated
+        }
+    }
+
+    /// Compromissos dos próximos dias, ordenados por vencimento.
+    var upcomingPayments: [UpcomingPayment] {
+        let bills = budget.compactMap { category -> UpcomingPayment? in
+            guard category.spent > 0 else { return nil }
+            return UpcomingPayment(
+                name: category.name,
+                amount: category.spent,
+                date: .now.addingTimeInterval(86400 * 7),
+                kind: .bill
+            )
+        }
+        let invoices = cards
+            .filter { $0.currentInvoice > 0 }
+            .map { card in
+                UpcomingPayment(
+                    name: card.name,
+                    amount: card.currentInvoice,
+                    date: invoiceDate(day: card.dueDay),
+                    kind: .invoice
+                )
+            }
+        let installments = debts
+            .filter { $0.status != .paidOff }
+            .map { debt in
+                UpcomingPayment(
+                    name: debt.creditor,
+                    amount: debt.installment,
+                    date: debt.dueDate,
+                    kind: .installment
+                )
+            }
+        return (bills + invoices + installments)
+            .sorted { $0.date < $1.date }
+    }
+
+    func invoiceDate(day: Int) -> Date {
+        var components = Calendar.current.dateComponents([.year, .month], from: .now)
+        components.day = min(max(day, 1), 28)
+        let candidate = Calendar.current.date(from: components) ?? .now
+        return candidate < .now ? (Calendar.current.date(byAdding: .month, value: 1, to: candidate) ?? candidate) : candidate
+    }
+
+    var level: GreenLevel {
+        GreenLevel(
+            score: levelScore,
+            delta: 8,
+            evolution: Self.levelEvolution,
+            message: levelScore >= 70
+                ? "Você avançou 8 pontos neste mês"
+                : "Você está no caminho certo para o verdinho"
+        )
+    }
+
+    private static let levelEvolution: [MonthlySeriesPoint] = [
+        .init(label: "Mar", value: 41), .init(label: "Abr", value: 46),
+        .init(label: "Mai", value: 49), .init(label: "Jun", value: 55),
+        .init(label: "Jul", value: 62), .init(label: "Ago", value: 72),
     ]
 
     let reports: [ReportRow] = [
@@ -420,12 +504,18 @@ final class AppState: ObservableObject {
         ("Outros", 420, Theme.textTertiary),
     ]
 
-    let profileSections: [(title: String, icon: String, items: [(String, String)])] = [
-        ("Preferências", "slider.horizontal.3", [("Aparência", "Escuro"), ("Moeda", "BRL"), ("Idioma", "Português")]),
-        ("Segurança", "lock.shield.fill", [("Face ID", "Ativado"), ("Mudar senha", ""), ("Notificações", "Ativado")]),
-        ("Dados", "externaldrive.fill", [("Exportar dados", ""), ("Categorias", "14"), ("Privacidade", ""), ("Apagar meus dados", "")]),
-        ("Conta", "person.crop.circle.fill", [("Sair", "")]),
-    ]
+    // MARK: Ação inteligente (regra simples, pronta para o motor do backend)
+
+    var bestNextAction: (title: String, message: String, accent: Color)? {
+        guard let priorityDebt = debts
+            .filter({ $0.status != .paidOff })
+            .max(by: { $0.interestRate < $1.interestRate }) else { return nil }
+        return (
+            "Priorize sua dívida do cartão",
+            "Ela possui os maiores juros entre suas dívidas (\(String(format: "%.0f", priorityDebt.interestRate))% a.a.).",
+            Theme.green
+        )
+    }
 
     func canISpend(_ amount: Double) -> CanISpendResult {
         switch amount {
@@ -435,10 +525,8 @@ final class AppState: ObservableObject {
         }
     }
 
-    // MARK: Persistência (UserDefaults)
+    // MARK: Persistência
 
-    /// Dados gravados localmente entre sessões do app.
-    /// O decode tolera campos ausentes (versões antigas salvas no aparelho).
     private struct PersistedState: Codable {
         var onboarded: Bool
         var registered: Bool
@@ -532,14 +620,11 @@ final class AppState: ObservableObject {
 
     // MARK: Sessão
 
-    /// Sai da conta mantendo os dados salvos no aparelho.
     func logout() {
         registered = false
         selectedTab = .home
     }
 
-    /// Apaga todos os dados locais (direito de exclusão da LGPD) e
-    /// volta para o onboarding.
     func deleteAllData() {
         notificationsEnabled = false
         UserDefaults.standard.removeObject(forKey: Self.storageKey)
@@ -562,8 +647,8 @@ final class AppState: ObservableObject {
 // MARK: - Lembretes locais de contas
 
 enum NotificationScheduler {
-    /// Pede permissão e agenda um lembrete 1 dia antes do vencimento de
-    /// cada dívida em aberto. Desativa todos os lembretes quando desligado.
+    /// Pede permissão e agenda um lembrete 1 dia antes do vencimento de cada
+    /// dívida em aberto. Desativa todos os lembretes quando desligado.
     static func syncReminders(for app: AppState) {
         let center = UNUserNotificationCenter.current()
         guard app.notificationsEnabled else {
@@ -593,6 +678,8 @@ enum NotificationScheduler {
         }
     }
 }
+
+// MARK: - Abas
 
 enum Tab: String, CaseIterable {
     case home = "Início"
