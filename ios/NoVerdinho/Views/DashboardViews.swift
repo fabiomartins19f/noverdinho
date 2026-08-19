@@ -5,6 +5,7 @@ import SwiftUI
 struct DashboardView: View {
     @EnvironmentObject var app: AppState
     @State private var loading = true
+    @State private var editingTransaction: Transaction?
 
     var body: some View {
         ScreenScroll {
@@ -18,6 +19,11 @@ struct DashboardView: View {
             // Pequeno "carregamento" inicial para dar ritmo profissional.
             try? await Task.sleep(for: .seconds(0.7))
             loading = false
+        }
+        .sheet(item: $editingTransaction) { transaction in
+            EditTransactionSheet(transaction: transaction)
+                .environmentObject(app)
+                .presentationDetents([.height(380)])
         }
     }
 
@@ -208,7 +214,10 @@ struct DashboardView: View {
                 }
 
                 ForEach(app.transactions.prefix(4)) { transaction in
-                    HStack(spacing: 12) {
+                    Button {
+                        editingTransaction = transaction
+                    } label: {
+                        HStack(spacing: 12) {
                         Image(systemName: transaction.kind == .income ? "arrow.down.left.circle.fill" : "arrow.up.right.circle.fill")
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(transaction.kind == .income ? Theme.green : Theme.textSecondary)
@@ -225,12 +234,28 @@ struct DashboardView: View {
                         }
                         Spacer()
 Text("\(transaction.kind == .income ? "+" : "-")\(Money.format(transaction.amount))")
-                            .font(Fonts.captionStrong())
-                            .foregroundStyle(transaction.kind == .income ? Theme.green : Theme.text)
+                                .font(Fonts.captionStrong())
+                                .foregroundStyle(transaction.kind == .income ? Theme.green : Theme.text)
+                        }
                     }
+                    .buttonStyle(.plain)
+                    .swipeActions(edge: .trailing) {
+                        Button(role: .destructive) {
+                            deleteTransaction(transaction)
+                        } label: {
+                            Label("Excluir", systemImage: "trash")
+                        }
+                    }
+                    .accessibilityLabel("Editar \(transaction.name)")
                 }
             }
         }
+
+    private func deleteTransaction(_ transaction: Transaction) {
+        app.balance += transaction.kind == .expense ? transaction.amount : -transaction.amount
+        app.transactions.removeAll { $0.id == transaction.id }
+        Haptics.light()
+    }
 
     private func miniIndicator(_ icon: String, _ title: String, _ value: Double, _ color: Color) -> some View {
         VStack(alignment: .leading, spacing: 8) {

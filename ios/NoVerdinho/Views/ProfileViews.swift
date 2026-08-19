@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 // MARK: - TELA 12: Relatórios
 
@@ -534,13 +535,264 @@ struct AddSheetView: View {
     }
 }
 
+// MARK: - Edição de transação (bottom sheet)
+
+/// Edita nome, categoria e valor de uma transação existente; o saldo é
+/// recalculado pela diferença entre o valor antigo e o novo.
+struct EditTransactionSheet: View {
+    @EnvironmentObject var app: AppState
+    @Environment(\.dismiss) private var dismiss
+    let transaction: Transaction
+
+    @State private var amountText = ""
+    @State private var detail = ""
+    @State private var category = "Outros"
+    @State private var errorMessage: String?
+
+    private let categories = ["Alimentação", "Transporte", "Lazer", "Saúde", "Moradia", "Outros"]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Editar \(transaction.kind == .income ? "receita" : "despesa")")
+                    .font(Fonts.headline(18))
+                    .foregroundStyle(Theme.text)
+                Spacer()
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(Theme.textSecondary)
+                        .frame(width: 44, height: 44)
+                        .background(Theme.surfaceAlt)
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Fechar")
+            }
+
+            AppCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    CurrencyField(value: $amountText, placeholder: "Valor")
+                    TextField("Descrição", text: $detail)
+                        .font(Fonts.body())
+                        .foregroundStyle(Theme.text)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 13)
+                        .background(Theme.surfaceAlt)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(Theme.borderStrong, lineWidth: 1)
+                        )
+                    categoryChips
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .font(Fonts.caption())
+                            .foregroundStyle(Theme.danger)
+                    }
+                    PrimaryButton("Salvar alterações", icon: "checkmark") {
+                        save()
+                    }
+                }
+            }
+        }
+        .padding(20)
+        .background(Theme.surfaceElevated.ignoresSafeArea())
+        .onAppear {
+            amountText = String(format: "%.2f", transaction.amount).replacingOccurrences(of: ".", with: ",")
+            detail = transaction.name
+            category = transaction.category
+        }
+    }
+
+    private var categoryChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(categories, id: \.self) { item in
+                    Button {
+                        category = item
+                    } label: {
+                        Text(item)
+                            .font(Fonts.captionStrong(12))
+                            .foregroundStyle(category == item ? Theme.background : Theme.textSecondary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 7)
+                            .background(category == item ? Theme.green : Theme.surfaceAlt)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    private func save() {
+        guard let value = Money.parse(amountText), !detail.isEmpty else {
+            errorMessage = "Informe o valor e a descrição."
+            Haptics.light()
+            return
+        }
+        guard let index = app.transactions.firstIndex(where: { $0.id == transaction.id }) else {
+            dismiss()
+            return
+        }
+        // Saldo: devolve o valor antigo e aplica o novo.
+        app.balance += transaction.kind == .income
+            ? -transaction.amount + value
+            : transaction.amount - value
+        app.transactions[index] = Transaction(
+            kind: transaction.kind,
+            name: detail,
+            category: category,
+            amount: value,
+            date: transaction.date
+        )
+        Haptics.success()
+        dismiss()
+    }
+}
+
 // MARK: - TELA 14: Perfil e Configurações
+
+/// Arquivo JSON compartilhável com os dados exportados do app.
+struct ExportFile: Transferable {
+    var data: Data
+
+    static var transferRepresentation: some TransferRepresentation {
+        DataRepresentation(exportedContentType: .json) { file in
+            file.data
+        }
+    }
+}
 
 struct ProfileView: View {
     @EnvironmentObject var app: AppState
     @State private var confirmLogout = false
     @State private var confirmDelete = false
     @State private var showComingSoon = false
+
+    /// JSON com todos os dados do usuário, para exportação (LGPD).
+    private var exportPayload: Data {
+        struct Export: Encodable {
+            let app = "No Verdinho"
+            let generatedAt: Date
+            let userName: String
+            let userEmail: String
+            let balance: Double
+            let levelScore: Int
+            let transactions: [Transaction]
+            let debts: [Debt]
+            let cards: [CreditCard]
+            let goals: [Goal]
+            let budget: [BudgetCategory]
+        }
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let export = Export(
+            generatedAt: .now,
+            userName: app.userName,
+            userEmail: app.userEmail,
+            balance: app.balance,
+            levelScore: app.levelScore,
+            transactions: app.transactions,
+            debts: app.debts,
+            cards: app.cards,
+            goals: app.goals,
+            budget: app.budget
+        )
+        return (try? encoder.encode(export)) ?? Data("{\"app\":\"No Verdinho\"}".utf8)
+    }
+
+    @ViewBuilder
+    private func settingsRow(for item: (String, String)) -> some View {
+        if item.0 == "Sair" {
+            Button {
+                confirmLogout = true
+            } label: {
+                HStack {
+                    Text(item.0)
+                        .font(Fonts.body())
+                        .foregroundStyle(Theme.danger)
+                    Spacer()
+                    Image(systemName: "rectangle.portrait.and.arrow.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Theme.danger)
+                }
+                .padding(.vertical, 10)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        } else if item.0 == "Apagar meus dados" {
+            Button {
+                confirmDelete = true
+            } label: {
+                HStack {
+                    Text(item.0)
+                        .font(Fonts.body())
+                        .foregroundStyle(Theme.danger)
+                    Spacer()
+                    Image(systemName: "trash")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Theme.danger)
+                }
+                .padding(.vertical, 10)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        } else if item.0 == "Exportar dados" {
+            ShareLink(
+                item: ExportFile(data: exportPayload),
+                preview: SharePreview("Dados No Verdinho")
+            ) {
+                HStack {
+                    Text(item.0)
+                        .font(Fonts.body())
+                        .foregroundStyle(Theme.text)
+                    Spacer()
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Theme.green)
+                }
+                .padding(.vertical, 10)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        } else if item.0 == "Notificações" {
+            Toggle(isOn: $app.notificationsEnabled) {
+                HStack {
+                    Text(item.0)
+                        .font(Fonts.body())
+                        .foregroundStyle(Theme.text)
+                    Spacer()
+                }
+            }
+            .tint(Theme.green)
+            .padding(.vertical, 10)
+            .accessibilityLabel("Lembretes de contas a vencer")
+        } else {
+            Button {
+                Haptics.light()
+                showComingSoon = true
+            } label: {
+                HStack {
+                    Text(item.0)
+                        .font(Fonts.body())
+                        .foregroundStyle(Theme.text)
+                    Spacer()
+                    Text(item.1)
+                        .font(Fonts.caption())
+                        .foregroundStyle(Theme.textSecondary)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Theme.textTertiary)
+                }
+                .padding(.vertical, 10)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+    }
 
     var body: some View {
         ScreenScroll {
@@ -703,62 +955,7 @@ struct ProfileView: View {
                             }
                             .padding(.bottom, 6)
                             ForEach(section.items, id: \.0) { item in
-                                if item.0 == "Sair" {
-                                    Button {
-                                        confirmLogout = true
-                                    } label: {
-                                        HStack {
-                                            Text(item.0)
-                                                .font(Fonts.body())
-                                                .foregroundStyle(Theme.danger)
-                                            Spacer()
-                                            Image(systemName: "rectangle.portrait.and.arrow.right")
-                                                .font(.system(size: 13, weight: .semibold))
-                                                .foregroundStyle(Theme.danger)
-                                        }
-                                        .padding(.vertical, 10)
-                                        .contentShape(Rectangle())
-                                    }
-                                    .buttonStyle(.plain)
-                                } else if item.0 == "Apagar meus dados" {
-                                    Button {
-                                        confirmDelete = true
-                                    } label: {
-                                        HStack {
-                                            Text(item.0)
-                                                .font(Fonts.body())
-                                                .foregroundStyle(Theme.danger)
-                                            Spacer()
-                                            Image(systemName: "trash")
-                                                .font(.system(size: 13, weight: .semibold))
-                                                .foregroundStyle(Theme.danger)
-                                        }
-                                        .padding(.vertical, 10)
-                                        .contentShape(Rectangle())
-                                    }
-                                    .buttonStyle(.plain)
-                                } else {
-                                    Button {
-                                        Haptics.light()
-                                        showComingSoon = true
-                                    } label: {
-                                        HStack {
-                                            Text(item.0)
-                                                .font(Fonts.body())
-                                                .foregroundStyle(Theme.text)
-                                            Spacer()
-                                            Text(item.1)
-                                                .font(Fonts.caption())
-                                                .foregroundStyle(Theme.textSecondary)
-                                            Image(systemName: "chevron.right")
-                                                .font(.system(size: 11, weight: .semibold))
-                                                .foregroundStyle(Theme.textTertiary)
-                                        }
-                                        .padding(.vertical, 10)
-                                        .contentShape(Rectangle())
-                                    }
-                                    .buttonStyle(.plain)
-                                }
+                                settingsRow(for: item)
                             }
                         }
                     }

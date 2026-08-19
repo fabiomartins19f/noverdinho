@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import UserNotifications
 
 // MARK: - Tipos base
 
@@ -135,14 +136,16 @@ struct UpcomingPayment: Identifiable {
     }
 }
 
-struct BudgetCategory: Identifiable {
+struct BudgetCategory: Identifiable, Codable {
     let id = UUID()
     let name: String
     let icon: String
-    let color: Color
-    let limit: Double
-    let spent: Double
+    /// Cor em hex ("FFB84D") para permitir persistência.
+    let colorHex: String
+    var limit: Double
+    var spent: Double
 
+    var color: Color { Color(hex: colorHex) }
     var progress: Double { limit > 0 ? spent / limit : 0 }
 }
 
@@ -291,12 +294,18 @@ final class AppState: ObservableObject {
     @Published var debts: [Debt] { didSet { save() } }
     @Published var cards: [CreditCard] { didSet { save() } }
     @Published var goals: [Goal] { didSet { save() } }
+    @Published var budget: [BudgetCategory] { didSet { save() } }
+    @Published var notificationsEnabled = false { didSet {
+        save()
+        NotificationScheduler.syncReminders(for: self)
+    } }
 
     init() {
         transactions = Self.defaultTransactions
         debts = Self.defaultDebts
         cards = Self.defaultCards
         goals = Self.defaultGoals
+        budget = Self.defaultBudget
         load()
     }
 
@@ -377,13 +386,13 @@ final class AppState: ObservableObject {
         .init(name: "Parcela Empréstimo", amount: 780, date: .now.addingTimeInterval(86400 * 15), kind: .installment),
     ]
 
-    let budget: [BudgetCategory] = [
-        .init(name: "Moradia", icon: "house.fill", color: Theme.warning, limit: 2200, spent: 1950),
-        .init(name: "Alimentação", icon: "cart.fill", color: Theme.green, limit: 1200, spent: 980),
-        .init(name: "Transporte", icon: "bus.fill", color: Theme.info, limit: 800, spent: 620),
-        .init(name: "Lazer", icon: "party.popper.fill", color: Theme.purple, limit: 700, spent: 920),
-        .init(name: "Saúde", icon: "heart.fill", color: Theme.danger, limit: 500, spent: 290),
-        .init(name: "Outros", icon: "ellipsis.circle.fill", color: Theme.textTertiary, limit: 600, spent: 420),
+    static let defaultBudget: [BudgetCategory] = [
+        .init(name: "Moradia", icon: "house.fill", colorHex: "FFB84D", limit: 2200, spent: 1950),
+        .init(name: "Alimentação", icon: "cart.fill", colorHex: "2FE6A0", limit: 1200, spent: 980),
+        .init(name: "Transporte", icon: "bus.fill", colorHex: "57A9FF", limit: 800, spent: 620),
+        .init(name: "Lazer", icon: "party.popper.fill", colorHex: "A48BFF", limit: 700, spent: 920),
+        .init(name: "Saúde", icon: "heart.fill", colorHex: "FF5A5F", limit: 500, spent: 290),
+        .init(name: "Outros", icon: "ellipsis.circle.fill", colorHex: "7A8A80", limit: 600, spent: 420),
     ]
 
     let insights: [InsightCard] = [
@@ -440,12 +449,15 @@ final class AppState: ObservableObject {
         var debts: [Debt]
         var cards: [CreditCard]
         var goals: [Goal]
+        var budget: [BudgetCategory]
         var diagnosticDone: Bool
         var levelScore: Int
+        var notificationsEnabled: Bool
 
         init(onboarded: Bool, registered: Bool, userName: String, userEmail: String,
              balance: Double, transactions: [Transaction], debts: [Debt],
-             cards: [CreditCard], goals: [Goal], diagnosticDone: Bool, levelScore: Int) {
+             cards: [CreditCard], goals: [Goal], budget: [BudgetCategory],
+             diagnosticDone: Bool, levelScore: Int, notificationsEnabled: Bool) {
             self.onboarded = onboarded
             self.registered = registered
             self.userName = userName
@@ -455,8 +467,10 @@ final class AppState: ObservableObject {
             self.debts = debts
             self.cards = cards
             self.goals = goals
+            self.budget = budget
             self.diagnosticDone = diagnosticDone
             self.levelScore = levelScore
+            self.notificationsEnabled = notificationsEnabled
         }
 
         init(from decoder: Decoder) throws {
@@ -470,8 +484,10 @@ final class AppState: ObservableObject {
             debts = try c.decodeIfPresent([Debt].self, forKey: .debts) ?? []
             cards = try c.decodeIfPresent([CreditCard].self, forKey: .cards) ?? []
             goals = try c.decodeIfPresent([Goal].self, forKey: .goals) ?? []
+            budget = try c.decodeIfPresent([BudgetCategory].self, forKey: .budget) ?? []
             diagnosticDone = try c.decodeIfPresent(Bool.self, forKey: .diagnosticDone) ?? false
             levelScore = try c.decodeIfPresent(Int.self, forKey: .levelScore) ?? 72
+            notificationsEnabled = try c.decodeIfPresent(Bool.self, forKey: .notificationsEnabled) ?? false
         }
     }
 
@@ -489,6 +505,8 @@ final class AppState: ObservableObject {
         debts = state.debts
         cards = state.cards
         goals = state.goals
+        budget = state.budget.isEmpty ? Self.defaultBudget : state.budget
+        notificationsEnabled = state.notificationsEnabled
     }
 
     private func save() {
@@ -502,8 +520,10 @@ final class AppState: ObservableObject {
             debts: debts,
             cards: cards,
             goals: goals,
+            budget: budget,
             diagnosticDone: diagnosticDone,
-            levelScore: levelScore
+            levelScore: levelScore,
+            notificationsEnabled: notificationsEnabled
         )
         if let data = try? JSONEncoder().encode(state) {
             UserDefaults.standard.set(data, forKey: Self.storageKey)
@@ -521,6 +541,7 @@ final class AppState: ObservableObject {
     /// Apaga todos os dados locais (direito de exclusão da LGPD) e
     /// volta para o onboarding.
     func deleteAllData() {
+        notificationsEnabled = false
         UserDefaults.standard.removeObject(forKey: Self.storageKey)
         onboarded = false
         registered = false
@@ -533,7 +554,43 @@ final class AppState: ObservableObject {
         debts = Self.defaultDebts
         cards = Self.defaultCards
         goals = Self.defaultGoals
+        budget = Self.defaultBudget
         selectedTab = .home
+    }
+}
+
+// MARK: - Lembretes locais de contas
+
+enum NotificationScheduler {
+    /// Pede permissão e agenda um lembrete 1 dia antes do vencimento de
+    /// cada dívida em aberto. Desativa todos os lembretes quando desligado.
+    static func syncReminders(for app: AppState) {
+        let center = UNUserNotificationCenter.current()
+        guard app.notificationsEnabled else {
+            center.removeAllPendingNotificationRequests()
+            return
+        }
+        center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
+            guard granted else { return }
+            center.removeAllPendingNotificationRequests()
+            let pending = app.debts.filter { $0.status != .paidOff }
+            for debt in pending {
+                let reminderDate = Calendar.current.date(byAdding: .day, value: -1, to: debt.dueDate) ?? debt.dueDate
+                guard reminderDate > .now else { continue }
+                let content = UNMutableNotificationContent()
+                content.title = "Conta chegando"
+                content.body = "\(debt.creditor) vence amanhã — \(Money.format(debt.installment))."
+                content.sound = .default
+                let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: reminderDate)
+                let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+                let request = UNNotificationRequest(
+                    identifier: "debt-\(debt.id.uuidString)",
+                    content: content,
+                    trigger: trigger
+                )
+                center.add(request)
+            }
+        }
     }
 }
 
