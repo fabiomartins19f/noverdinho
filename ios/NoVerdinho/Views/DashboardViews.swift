@@ -4,14 +4,51 @@ import SwiftUI
 
 struct DashboardView: View {
     @EnvironmentObject var app: AppState
+    @State private var loading = true
 
     var body: some View {
         ScreenScroll {
-            VStack(alignment: .leading, spacing: 20) {
+            if loading {
+                skeleton
+            } else {
+                content
+            }
+        }
+        .task {
+            // Pequeno "carregamento" inicial para dar ritmo profissional.
+            try? await Task.sleep(for: .seconds(0.7))
+            loading = false
+        }
+    }
+
+    private var skeleton: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack {
+                VStack(alignment: .leading, spacing: 8) {
+                    SkeletonBlock(width: 130, height: 20)
+                    SkeletonBlock(width: 190, height: 12)
+                }
+                Spacer()
+                SkeletonBlock(width: 40, height: 40)
+            }
+            SkeletonBlock(height: 96).frame(maxWidth: .infinity)
+            HStack(spacing: 12) {
+                ForEach(0..<3, id: \.self) { _ in
+                    SkeletonBlock(height: 74).frame(maxWidth: .infinity)
+                }
+            }
+            SkeletonBlock(height: 170).frame(maxWidth: .infinity)
+            SkeletonBlock(height: 60).frame(maxWidth: .infinity)
+            SkeletonBlock(height: 60).frame(maxWidth: .infinity)
+        }
+    }
+
+    private var content: some View {
+        VStack(alignment: .leading, spacing: 20) {
                 // Topo
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Bom dia 👋")
+                        Text("Bom dia")
                             .font(Fonts.headline(20))
                             .foregroundStyle(Theme.text)
                         Text("Como está sua vida financeira hoje?")
@@ -98,6 +135,14 @@ struct DashboardView: View {
                 // Próximos compromissos
                 SectionTitle("Próximos compromissos", action: ("Ver tudo", { app.selectedTab = .debts }))
 
+                if app.upcomingPayments.isEmpty {
+                    EmptyState(
+                        icon: "calendar",
+                        title: "Nenhum compromisso",
+                        message: "Seus próximos pagamentos aparecerão aqui."
+                    )
+                }
+
                 ForEach(app.upcomingPayments.prefix(3)) { payment in
                     HStack(spacing: 12) {
                         Image(systemName: payment.kind.icon)
@@ -126,6 +171,15 @@ struct DashboardView: View {
 
                 // Últimas transações
                 SectionTitle("Últimas transações")
+
+                if app.transactions.isEmpty {
+                    EmptyState(
+                        icon: "list.bullet.rectangle",
+                        title: "Sem movimentações",
+                        message: "Registre receitas e despesas pelo botão + para acompanhar aqui."
+                    )
+                }
+
                 ForEach(app.transactions.prefix(4)) { transaction in
                     HStack(spacing: 12) {
                         Image(systemName: transaction.kind == .income ? "arrow.down.left.circle.fill" : "arrow.up.right.circle.fill")
@@ -143,14 +197,13 @@ struct DashboardView: View {
                                 .foregroundStyle(Theme.textSecondary)
                         }
                         Spacer()
-                        Text("\(transaction.kind == .income ? "+" : "-")\(Money.format(transaction.amount))")
+Text("\(transaction.kind == .income ? "+" : "-")\(Money.format(transaction.amount))")
                             .font(Fonts.captionStrong())
                             .foregroundStyle(transaction.kind == .income ? Theme.green : Theme.text)
                     }
                 }
             }
         }
-    }
 
     private func miniIndicator(_ icon: String, _ title: String, _ value: Double, _ color: Color) -> some View {
         VStack(alignment: .leading, spacing: 8) {

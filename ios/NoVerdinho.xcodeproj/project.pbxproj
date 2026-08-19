@@ -12,7 +12,9 @@
 		4927314DD5AD73E2A1DFF627 /* PlanningViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32D72194984DDE87946B1840 /* PlanningViews.swift */; };
 		49A7020F4B9970E134C95899 /* PayoffPlanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 706D636C5CE21DE212669143 /* PayoffPlanView.swift */; };
 		4BD921761020CC8668F68587 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB060C30E76087677A4F6523 /* Theme.swift */; };
+		51EAA424E6144FCB522E87C4 /* RegisterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F8D8594E3000C2F0048B367 /* RegisterView.swift */; };
 		53513FC6B8DB5C1889B9E3F5 /* DebtDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15AF6F5A287BB8469F7D96CA /* DebtDetailView.swift */; };
+		5892EBB27E6D17BCCD27064A /* StatementImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA068E5AE465CBD2E0B0C3A5 /* StatementImportView.swift */; };
 		5B70E9C15F6ED839DEF48304 /* OnboardingViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9E238D06377AA652FAAD66C /* OnboardingViews.swift */; };
 		6090813F0B8E42DD12CE0290 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = D650514DD2EEAF6B09D6EC43 /* Models.swift */; };
 		6ED67FF26B5F91924EDB67D5 /* ProfileViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 119896BE080BF7614B52C10C /* ProfileViews.swift */; };
@@ -20,16 +22,20 @@
 		A7D68B637041FBBE2E746D05 /* CardViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34E329AF5472026EA1740AFF /* CardViews.swift */; };
 		B11921CE5EDB4F96DF18A540 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = E906C55DC4D942AAC38F1F1F /* Components.swift */; };
 		E7C27A964F32C592E039809C /* InsightViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BD421CD56CFDBE13A64FC3C /* InsightViews.swift */; };
+		FDABC22EB9A88418877AD021 /* StatementParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76F1F29871D36FCF0BE3AD45 /* StatementParser.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		119896BE080BF7614B52C10C /* ProfileViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileViews.swift; sourceTree = "<group>"; };
 		15AF6F5A287BB8469F7D96CA /* DebtDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebtDetailView.swift; sourceTree = "<group>"; };
 		1C7F2B5FC7D30924D99EB4FA /* NoVerdinho.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = NoVerdinho.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2F8D8594E3000C2F0048B367 /* RegisterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegisterView.swift; sourceTree = "<group>"; };
 		32D72194984DDE87946B1840 /* PlanningViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanningViews.swift; sourceTree = "<group>"; };
 		34E329AF5472026EA1740AFF /* CardViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardViews.swift; sourceTree = "<group>"; };
 		4BD421CD56CFDBE13A64FC3C /* InsightViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightViews.swift; sourceTree = "<group>"; };
 		706D636C5CE21DE212669143 /* PayoffPlanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PayoffPlanView.swift; sourceTree = "<group>"; };
+		76F1F29871D36FCF0BE3AD45 /* StatementParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatementParser.swift; sourceTree = "<group>"; };
+		AA068E5AE465CBD2E0B0C3A5 /* StatementImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatementImportView.swift; sourceTree = "<group>"; };
 		BEF52D8FE927817A9988A134 /* DashboardViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViews.swift; sourceTree = "<group>"; };
 		D650514DD2EEAF6B09D6EC43 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		DB060C30E76087677A4F6523 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
@@ -81,6 +87,7 @@
 			isa = PBXGroup;
 			children = (
 				D650514DD2EEAF6B09D6EC43 /* Models.swift */,
+				76F1F29871D36FCF0BE3AD45 /* StatementParser.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -96,6 +103,8 @@
 				706D636C5CE21DE212669143 /* PayoffPlanView.swift */,
 				32D72194984DDE87946B1840 /* PlanningViews.swift */,
 				119896BE080BF7614B52C10C /* ProfileViews.swift */,
+				2F8D8594E3000C2F0048B367 /* RegisterView.swift */,
+				AA068E5AE465CBD2E0B0C3A5 /* StatementImportView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -146,6 +155,10 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
+					8460C0AC98ED751140C71F67 = {
+						DevelopmentTeam = N8VSB7DMCQ;
+						ProvisioningStyle = Automatic;
+					};
 				};
 			};
 			buildConfigurationList = DCADBADA6AF58D08062D2E4D /* Build configuration list for PBXProject "NoVerdinho" */;
@@ -194,6 +207,9 @@
 				49A7020F4B9970E134C95899 /* PayoffPlanView.swift in Sources */,
 				4927314DD5AD73E2A1DFF627 /* PlanningViews.swift in Sources */,
 				6ED67FF26B5F91924EDB67D5 /* ProfileViews.swift in Sources */,
+				51EAA424E6144FCB522E87C4 /* RegisterView.swift in Sources */,
+				5892EBB27E6D17BCCD27064A /* StatementImportView.swift in Sources */,
+				FDABC22EB9A88418877AD021 /* StatementParser.swift in Sources */,
 				4BD921761020CC8668F68587 /* Theme.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -205,17 +221,13 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGNING_ALLOWED = NO;
-				CODE_SIGN_IDENTITY = "";
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = br.com.noverdinho.app;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = "1";
 			};
 			name = Debug;
 		};
@@ -223,6 +235,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -252,11 +265,11 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = N8VSB7DMCQ;
 				ENABLE_NS_ASSERTIONS = NO;
-				ENABLE_PREVIEWS = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -266,19 +279,17 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "No Verdinho";
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleLightContent;
-				INFOPLIST_KEY_UIUserInterfaceStyle = Dark;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.0.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = br.com.noverdinho.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
-				SWIFT_VERSION = 5.10;
+				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
@@ -287,6 +298,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -316,10 +328,10 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				ENABLE_PREVIEWS = YES;
+				DEVELOPMENT_TEAM = N8VSB7DMCQ;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -336,20 +348,18 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "No Verdinho";
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleLightContent;
-				INFOPLIST_KEY_UIUserInterfaceStyle = Dark;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.0.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = br.com.noverdinho.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_VERSION = 5.10;
+				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
@@ -358,17 +368,13 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGNING_ALLOWED = NO;
-				CODE_SIGN_IDENTITY = "";
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = br.com.noverdinho.app;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = "1";
 			};
 			name = Release;
 		};

@@ -19,7 +19,9 @@ struct RootTabView: View {
             if !app.showDiagnostic {
                 CustomTabBar(selected: $app.selectedTab) {
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
-                        app.showDiagnostic = true
+                        // "+" abre o bottom sheet de adicionar (receita, despesa,
+                        // dívida, cartão ou meta).
+                        app.showAddSheet = true
                     }
                 }
             }
@@ -119,6 +121,8 @@ struct NoVerdinhoApp: App {
             Group {
                 if !app.onboarded {
                     OnboardingView()
+                } else if !app.registered {
+                    RegisterView()
                 } else if app.showDiagnostic {
                     DiagnosticView()
                 } else {

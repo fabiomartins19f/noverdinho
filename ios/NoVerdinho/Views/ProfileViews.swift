@@ -128,42 +128,33 @@ struct ReportsView: View {
 
 // MARK: - TELA 13: Adicionar (bottom sheet)
 
+/// Bottom sheet do botão "+": escolhe o tipo e preenche um formulário.
+/// Cada tipo adiciona um item de verdade no AppState (e é persistido).
 struct AddSheetView: View {
     let onClose: () -> Void
     @EnvironmentObject var app: AppState
-    @State private var selectedType: AddType?
+
+    @State private var selectedType: AddSheetType?
     @State private var showForm = false
+    @State private var formError: String?
 
-    private enum AddType: String, CaseIterable {
-        case income = "Receita"
-        case expense = "Despesa"
-        case debt = "Dívida"
-        case account = "Conta"
-        case card = "Cartão"
-        case goal = "Meta"
+    // Receita / Despesa
+    @State private var amountText = ""
+    @State private var detail = ""
+    @State private var category = "Outros"
+    // Dívida
+    @State private var creditor = ""
+    @State private var installmentsText = "1"
+    @State private var interestText = "0"
+    // Cartão
+    @State private var cardInstitution = ""
+    @State private var cardDigits = ""
+    @State private var cardLimitText = ""
+    @State private var cardDueDayText = "10"
+    // Meta
+    @State private var goalKind: Goal.Kind = .reserve
 
-        var icon: String {
-            switch self {
-            case .income: "arrow.down.left.circle.fill"
-            case .expense: "arrow.up.right.circle.fill"
-            case .debt: "banknote.fill"
-            case .account: "building.columns.fill"
-            case .card: "creditcard.fill"
-            case .goal: "target"
-            }
-        }
-
-        var color: Color {
-            switch self {
-            case .income: Theme.green
-            case .expense: Theme.danger
-            case .debt: Theme.warning
-            case .account: Theme.info
-            case .card: Theme.purple
-            case .goal: Theme.greenBright
-            }
-        }
-    }
+    private let categories = ["Alimentação", "Transporte", "Lazer", "Saúde", "Moradia", "Outros"]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -184,10 +175,9 @@ struct AddSheetView: View {
             }
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                ForEach(AddType.allCases, id: \.self) { type in
+                ForEach(AddSheetType.allCases, id: \.self) { type in
                     Button {
-                        selectedType = type
-                        withAnimation { showForm = true }
+                        select(type)
                     } label: {
                         VStack(spacing: 8) {
                             Image(systemName: type.icon)
@@ -202,8 +192,12 @@ struct AddSheetView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
-                        .background(Theme.surfaceAlt)
+                        .background(selectedType == type ? type.color.opacity(0.10) : Theme.surfaceAlt)
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .stroke(selectedType == type ? type.color : .clear, lineWidth: 1.5)
+                        )
                     }
                     .buttonStyle(.plain)
                 }
@@ -215,20 +209,18 @@ struct AddSheetView: View {
                         Text("Nova \(selectedType.rawValue.lowercased())")
                             .font(Fonts.captionStrong())
                             .foregroundStyle(Theme.textSecondary)
-                        CurrencyField(value: .constant(""), placeholder: "Valor")
-                        TextField("Descrição", text: .constant(""))
-                            .font(Fonts.body())
-                            .foregroundStyle(Theme.text)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 13)
-                            .background(Theme.surfaceAlt)
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .stroke(Theme.borderStrong, lineWidth: 1)
-                            )
+
+                        formFields(for: selectedType)
+
+                        if let formError {
+                            Text(formError)
+                                .font(Fonts.caption())
+                                .foregroundStyle(Theme.danger)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+
                         PrimaryButton("Salvar", icon: "checkmark") {
-                            onClose()
+                            save(selectedType)
                         }
                     }
                 }
@@ -248,6 +240,277 @@ struct AddSheetView: View {
                 .frame(width: 40, height: 5)
                 .padding(.top, 10)
         }
+        .onAppear(perform: applyPreset)
+    }
+
+    // MARK: Seleção
+
+    private func select(_ type: AddSheetType) {
+        Haptics.light()
+        withAnimation(.easeOut(duration: 0.2)) {
+            selectedType = type
+            formError = nil
+            showForm = true
+        }
+    }
+
+    /// Suporta o atalho "Adicionar cartão" (ex.: tela de cartões vazia).
+    private func applyPreset() {
+        guard let preset = app.addPreset else { return }
+        app.addPreset = nil
+        select(preset)
+    }
+
+    // MARK: Campos
+
+    @ViewBuilder
+    private func formFields(for type: AddSheetType) -> some View {
+        switch type {
+        case .income, .expense:
+            CurrencyField(value: $amountText, placeholder: "Valor")
+            TextField("Descrição", text: $detail)
+                .font(Fonts.body())
+                .foregroundStyle(Theme.text)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 13)
+                .background(Theme.surfaceAlt)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Theme.borderStrong, lineWidth: 1)
+                )
+            categoryPicker
+
+        case .debt:
+            TextField("Credor (ex.: Cartão Nubank)", text: $creditor)
+                .font(Fonts.body())
+                .foregroundStyle(Theme.text)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 13)
+                .background(Theme.surfaceAlt)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Theme.borderStrong, lineWidth: 1)
+                )
+            CurrencyField(value: $amountText, placeholder: "Valor total da dívida")
+            HStack(spacing: 12) {
+                TextField("Parcelas", text: $installmentsText)
+                    .keyboardType(.numberPad)
+                    .font(Fonts.body())
+                    .foregroundStyle(Theme.text)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 13)
+                    .background(Theme.surfaceAlt)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                TextField("Juros % a.a.", text: $interestText)
+                    .keyboardType(.numberPad)
+                    .font(Fonts.body())
+                    .foregroundStyle(Theme.text)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 13)
+                    .background(Theme.surfaceAlt)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+
+        case .card:
+            TextField("Nome do cartão (ex.: Nubank)", text: $detail)
+                .font(Fonts.body())
+                .foregroundStyle(Theme.text)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 13)
+                .background(Theme.surfaceAlt)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Theme.borderStrong, lineWidth: 1)
+                )
+            TextField("Instituição (ex.: Nu Pagamentos)", text: $cardInstitution)
+                .font(Fonts.body())
+                .foregroundStyle(Theme.text)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 13)
+                .background(Theme.surfaceAlt)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Theme.borderStrong, lineWidth: 1)
+                )
+            CurrencyField(value: $cardLimitText, placeholder: "Limite do cartão")
+            HStack(spacing: 12) {
+                TextField("Final do cartão", text: $cardDigits)
+                    .keyboardType(.numberPad)
+                    .font(Fonts.body())
+                    .foregroundStyle(Theme.text)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 13)
+                    .background(Theme.surfaceAlt)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                TextField("Vence dia", text: $cardDueDayText)
+                    .keyboardType(.numberPad)
+                    .font(Fonts.body())
+                    .foregroundStyle(Theme.text)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 13)
+                    .background(Theme.surfaceAlt)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+            Text("A cor da marca é aplicada automaticamente pelo nome do cartão.")
+                .font(Fonts.caption(12))
+                .foregroundStyle(Theme.textTertiary)
+
+        case .goal:
+            TextField("Nome da meta (ex.: Reserva de emergência)", text: $detail)
+                .font(Fonts.body())
+                .foregroundStyle(Theme.text)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 13)
+                .background(Theme.surfaceAlt)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Theme.borderStrong, lineWidth: 1)
+                )
+            HStack(spacing: 8) {
+                ForEach(Goal.Kind.allCases, id: \.self) { kind in
+                    Button {
+                        goalKind = kind
+                    } label: {
+                        Image(systemName: kind.icon)
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(goalKind == kind ? Theme.background : Theme.textSecondary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(goalKind == kind ? Theme.green : Theme.surfaceAlt)
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            CurrencyField(value: $amountText, placeholder: "Valor alvo")
+            HStack(spacing: 8) {
+                Text("Aporte mensal")
+                    .font(Fonts.caption())
+                    .foregroundStyle(Theme.textSecondary)
+                TextField("0", text: $creditor)
+                    .keyboardType(.decimalPad)
+                    .font(Fonts.body())
+                    .foregroundStyle(Theme.text)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 13)
+                    .background(Theme.surfaceAlt)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(Theme.borderStrong, lineWidth: 1)
+                    )
+            }
+        }
+    }
+
+    private var categoryPicker: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(categories, id: \.self) { item in
+                    Button {
+                        category = item
+                    } label: {
+                        Text(item)
+                            .font(Fonts.captionStrong(12))
+                            .foregroundStyle(category == item ? Theme.background : Theme.textSecondary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 7)
+                            .background(category == item ? Theme.green : Theme.surfaceAlt)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    // MARK: Salvar
+
+    private func save(_ type: AddSheetType) {
+        formError = nil
+
+        switch type {
+        case .income:
+            guard let value = parseAmount(amountText), !detail.isEmpty else {
+                return fail("Informe o valor e a descrição.")
+            }
+            app.balance += value
+            app.transactions.insert(Transaction(kind: .income, name: detail, category: category, amount: value, date: .now), at: 0)
+
+        case .expense:
+            guard let value = parseAmount(amountText), !detail.isEmpty else {
+                return fail("Informe o valor e a descrição.")
+            }
+            app.balance -= value
+            app.transactions.insert(Transaction(kind: .expense, name: detail, category: category, amount: value, date: .now), at: 0)
+
+        case .debt:
+            guard let value = parseAmount(amountText), !creditor.isEmpty else {
+                return fail("Informe o credor e o valor total.")
+            }
+            let total = Int(installmentsText) ?? 1
+            let interest = Double(interestText) ?? 0
+            app.debts.insert(Debt(
+                type: .loan, creditor: creditor, originalAmount: value, paidAmount: 0, remainingBalance: value,
+                interestRate: interest, installment: total > 0 ? value / Double(total) : value,
+                installmentCount: max(total, 1), paidInstallments: 0,
+                dueDate: .now.addingTimeInterval(86400 * 30), priority: .medium, status: .onTime
+            ), at: 0)
+
+        case .card:
+            guard let limit = parseAmount(cardLimitText), !detail.isEmpty else {
+                return fail("Informe o nome e o limite do cartão.")
+            }
+            app.cards.insert(CreditCard(
+                name: detail, institution: cardInstitution.isEmpty ? detail : cardInstitution,
+                lastDigits: cardDigits.isEmpty ? "0000" : cardDigits,
+                limit: limit, used: 0, currentInvoice: 0,
+                dueDay: min(max(Int(cardDueDayText) ?? 10, 1), 31)
+            ), at: 0)
+
+        case .goal:
+            guard let target = parseAmount(amountText), !detail.isEmpty else {
+                return fail("Informe o nome e o valor alvo da meta.")
+            }
+            let monthly = Double(creditor) ?? 0
+            app.goals.insert(Goal(
+                kind: goalKind, title: detail, emoji: goalKind.icon,
+                target: target, saved: 0, monthlyContribution: monthly
+            ), at: 0)
+        }
+
+        Haptics.success()
+        withAnimation(.easeOut(duration: 0.2)) {
+            onClose()
+        }
+    }
+
+    private func fail(_ message: String) {
+        formError = message
+        Haptics.light()
+    }
+
+    /// Converte texto digitado em valor, aceitando "1250", "1250.50",
+    /// "1.250,50" e "R$ 1.250,50".
+    private func parseAmount(_ text: String) -> Double? {
+        let trimmed = text
+            .replacingOccurrences(of: "R$", with: "")
+            .trimmingCharacters(in: .whitespaces)
+        let normalized: String
+        if trimmed.contains(",") {
+            normalized = trimmed
+                .replacingOccurrences(of: ".", with: "")
+                .replacingOccurrences(of: ",", with: ".")
+        } else {
+            normalized = trimmed
+        }
+        guard let value = Double(normalized), value > 0 else { return nil }
+        return value
     }
 }
 
@@ -255,6 +518,8 @@ struct AddSheetView: View {
 
 struct ProfileView: View {
     @EnvironmentObject var app: AppState
+    @State private var confirmLogout = false
+    @State private var confirmDelete = false
 
     var body: some View {
         ScreenScroll {
@@ -268,10 +533,10 @@ struct ProfileView: View {
                             Circle().stroke(Theme.green, lineWidth: 2).frame(width: 60, height: 60)
                         )
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("Usuário")
+                        Text(app.userName)
                             .font(Fonts.headline(20))
                             .foregroundStyle(Theme.text)
-                        Text("usuario@email.com")
+                        Text(app.userEmail)
                             .font(Fonts.caption())
                             .foregroundStyle(Theme.textSecondary)
                         HStack(spacing: 4) {
@@ -417,22 +682,58 @@ struct ProfileView: View {
                             }
                             .padding(.bottom, 6)
                             ForEach(section.items, id: \.0) { item in
-                                HStack {
-                                    Text(item.0)
-                                        .font(Fonts.body())
-                                        .foregroundStyle(Theme.text)
-                                    Spacer()
-                                    Text(item.1)
-                                        .font(Fonts.caption())
-                                        .foregroundStyle(Theme.textSecondary)
-                                    if item.0 != "Sair" {
-                                        Image(systemName: "chevron.right")
-                                            .font(.system(size: 11, weight: .semibold))
-                                            .foregroundStyle(Theme.textTertiary)
+                                if item.0 == "Sair" {
+                                    Button {
+                                        confirmLogout = true
+                                    } label: {
+                                        HStack {
+                                            Text(item.0)
+                                                .font(Fonts.body())
+                                                .foregroundStyle(Theme.danger)
+                                            Spacer()
+                                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                                                .font(.system(size: 13, weight: .semibold))
+                                                .foregroundStyle(Theme.danger)
+                                        }
+                                        .padding(.vertical, 10)
+                                        .contentShape(Rectangle())
                                     }
+                                    .buttonStyle(.plain)
+                                } else if item.0 == "Apagar meus dados" {
+                                    Button {
+                                        confirmDelete = true
+                                    } label: {
+                                        HStack {
+                                            Text(item.0)
+                                                .font(Fonts.body())
+                                                .foregroundStyle(Theme.danger)
+                                            Spacer()
+                                            Image(systemName: "trash")
+                                                .font(.system(size: 13, weight: .semibold))
+                                                .foregroundStyle(Theme.danger)
+                                        }
+                                        .padding(.vertical, 10)
+                                        .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
+                                } else {
+                                    HStack {
+                                        Text(item.0)
+                                            .font(Fonts.body())
+                                            .foregroundStyle(Theme.text)
+                                        Spacer()
+                                        Text(item.1)
+                                            .font(Fonts.caption())
+                                            .foregroundStyle(Theme.textSecondary)
+                                        if item.0 != "Sair" {
+                                            Image(systemName: "chevron.right")
+                                                .font(.system(size: 11, weight: .semibold))
+                                                .foregroundStyle(Theme.textTertiary)
+                                        }
+                                    }
+                                    .padding(.vertical, 10)
+                                    .contentShape(Rectangle())
                                 }
-                                .padding(.vertical, 10)
-                                .contentShape(Rectangle())
                             }
                         }
                     }
@@ -441,5 +742,21 @@ struct ProfileView: View {
         }
         .navigationTitle("Perfil")
         .navigationBarTitleDisplayMode(.inline)
+        .confirmationDialog("Sair da conta?", isPresented: $confirmLogout, titleVisibility: .visible) {
+            Button("Sair", role: .destructive) {
+                app.logout()
+            }
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            Text("Seus dados continuam salvos neste aparelho.")
+        }
+        .confirmationDialog("Apagar todos os dados?", isPresented: $confirmDelete, titleVisibility: .visible) {
+            Button("Apagar tudo", role: .destructive) {
+                app.deleteAllData()
+            }
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            Text("Conforme a LGPD, todos os dados locais serão removidos e você voltará ao início.")
+        }
     }
 }

@@ -1,4 +1,19 @@
 import SwiftUI
+import UIKit
+
+// MARK: - Feedback tátil
+
+enum Haptics {
+    /// Toque leve para ações comuns (salvar, selecionar).
+    static func light() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
+    /// Confirmação para ações concluídas com sucesso.
+    static func success() {
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+}
 
 // MARK: - Cartão padrão
 

@@ -3,7 +3,7 @@ import SwiftUI
 
 // MARK: - Tipos base
 
-enum DebtType: String, CaseIterable {
+enum DebtType: String, CaseIterable, Codable {
     case creditCard = "Cartão de crédito"
     case loan = "Empréstimo"
     case financing = "Financiamento"
@@ -19,11 +19,11 @@ enum DebtType: String, CaseIterable {
     }
 }
 
-enum DebtStatus {
+enum DebtStatus: String, Codable {
     case paidOff, onTime, overdue
 }
 
-enum DebtPriority: String {
+enum DebtPriority: String, Codable {
     case high = "Alta"
     case medium = "Média"
     case low = "Baixa"
@@ -37,7 +37,7 @@ enum DebtPriority: String {
     }
 }
 
-struct Debt: Identifiable {
+struct Debt: Identifiable, Codable {
     let id = UUID()
     let type: DebtType
     let creditor: String
@@ -55,7 +55,9 @@ struct Debt: Identifiable {
     var progress: Double { originalAmount > 0 ? paidAmount / originalAmount : 0 }
 }
 
-struct CreditCard: Identifiable {
+// MARK: - Cartão de crédito
+
+struct CreditCard: Identifiable, Codable {
     let id = UUID()
     let name: String
     let institution: String
@@ -64,22 +66,47 @@ struct CreditCard: Identifiable {
     let used: Double
     let currentInvoice: Double
     let dueDay: Int
+    var statementItems: [CardPurchase] = []
 
     var available: Double { limit - used }
     var utilization: Double { limit > 0 ? used / limit : 0 }
+
+    /// Cor de marca do cartão (estilo Nubank), derivada do nome do cartão.
+    var brandColor: Color {
+        switch name.lowercased() {
+        case let n where n.contains("nubank"): Color(hex: "820AD1")
+        case let n where n.contains("itau") || n.contains("itaú"): Color(hex: "EC7000")
+        case let n where n.contains("inter"): Color(hex: "FF7A00")
+        case let n where n.contains("amex") || n.contains("american"): Color(hex: "1F9FD9")
+        case let n where n.contains("santander"): Color(hex: "EC0000")
+        case let n where n.contains("bradesco"): Color(hex: "CC092F")
+        case let n where n.contains("caixa"): Color(hex: "005CA9")
+        case let n where n.contains("bb ") || n.contains("brasil"): Color(hex: "FAF33E")
+        default: Theme.green
+        }
+    }
+
+    /// Gradiente da marca usado na barra de limite e nos destaques.
+    var brandGradient: LinearGradient {
+        LinearGradient(
+            colors: [brandColor.opacity(0.9), brandColor],
+            startPoint: .leading, endPoint: .trailing
+        )
+    }
 }
 
-struct CardPurchase: Identifiable {
+struct CardPurchase: Identifiable, Codable {
     let id = UUID()
     let name: String
     let amount: Double
     let installments: Int
     let paidInstallments: Int
     let date: Date
+    var fromStatement: Bool = false
 }
 
-struct Transaction: Identifiable {
-    enum Kind { case income, expense, transfer }
+struct Transaction: Identifiable, Codable {
+    enum Kind: String, Codable { case income, expense, transfer }
     let id = UUID()
     let kind: Kind
     let name: String
@@ -119,8 +146,30 @@ struct BudgetCategory: Identifiable {
     var progress: Double { limit > 0 ? spent / limit : 0 }
 }
 
-struct Goal: Identifiable {
-    enum Kind { case debt, reserve, car, travel }
+struct Goal: Identifiable, Codable {
+    enum Kind: String, Codable, CaseIterable {
+        case debt, reserve, car, travel
+
+        var title: String {
+            switch self {
+            case .debt: "Quitar dívidas"
+            case .reserve: "Reserva de emergência"
+            case .car: "Comprar carro"
+            case .travel: "Viagem"
+            }
+        }
+
+        /// Símbolo SF usado como ícone da meta.
+        var icon: String {
+            switch self {
+            case .debt: "banknote.fill"
+            case .reserve: "building.columns.fill"
+            case .car: "car.fill"
+            case .travel: "airplane"
+            }
+        }
+    }
+
     let id = UUID()
     let kind: Kind
     let title: String
@@ -193,14 +242,65 @@ struct GreenLevel {
     }
 }
 
-// MARK: - App State (mock)
+// MARK: - Tipos de adição (bottom sheet "+")
+
+enum AddSheetType: String, CaseIterable {
+    case income = "Receita"
+    case expense = "Despesa"
+    case debt = "Dívida"
+    case card = "Cartão"
+    case goal = "Meta"
+
+    var icon: String {
+        switch self {
+        case .income: "arrow.down.left.circle.fill"
+        case .expense: "arrow.up.right.circle.fill"
+        case .debt: "banknote.fill"
+        case .card: "creditcard.fill"
+        case .goal: "target"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .income: Theme.green
+        case .expense: Theme.danger
+        case .debt: Theme.warning
+        case .card: Theme.purple
+        case .goal: Theme.greenBright
+        }
+    }
+}
+
+// MARK: - App State (mock + persistência local)
 
 final class AppState: ObservableObject {
-    @Published var onboarded = false
+    /// Chave usada no UserDefaults para guardar os dados do usuário.
+    private static let storageKey = "noverdinho.persisted"
+
+    @Published var onboarded = false { didSet { save() } }
+    @Published var registered = false { didSet { save() } }
+    @Published var userName = "Usuário" { didSet { save() } }
+    @Published var userEmail = "usuario@email.com" { didSet { save() } }
     @Published var showDiagnostic = false
     @Published var showAddSheet = false
-    @Published var balance: Double = 3240
+    @Published var addPreset: AddSheetType?
+    @Published var balance: Double = 3240 { didSet { save() } }
     @Published var selectedTab: Tab = .home
+    @Published var transactions: [Transaction] { didSet { save() } }
+    @Published var debts: [Debt] { didSet { save() } }
+    @Published var cards: [CreditCard] { didSet { save() } }
+    @Published var goals: [Goal] { didSet { save() } }
+
+    init() {
+        transactions = Self.defaultTransactions
+        debts = Self.defaultDebts
+        cards = Self.defaultCards
+        goals = Self.defaultGoals
+        load()
+    }
+
+    // MARK: Dados estáticos (demo)
 
     let level = GreenLevel(
         score: 72,
@@ -213,7 +313,7 @@ final class AppState: ObservableObject {
         message: "Você avançou 8 pontos este mês"
     )
 
-    let transactions: [Transaction] = [
+    static let defaultTransactions: [Transaction] = [
         .init(kind: .income, name: "Salário", category: "Salário", amount: 7500, date: .now.addingTimeInterval(-86400 * 2)),
         .init(kind: .expense, name: "Mercado", category: "Alimentação", amount: 486.90, date: .now.addingTimeInterval(-86400)),
         .init(kind: .expense, name: "Aluguel", category: "Moradia", amount: 1800, date: .now.addingTimeInterval(-86400 * 3)),
@@ -222,7 +322,7 @@ final class AppState: ObservableObject {
         .init(kind: .income, name: "Freelance", category: "Freelance", amount: 1200, date: .now.addingTimeInterval(-86400 * 6)),
     ]
 
-    let debts: [Debt] = [
+    static let defaultDebts: [Debt] = [
         .init(type: .creditCard, creditor: "Cartão Nubank", originalAmount: 12000, paidAmount: 7150, remainingBalance: 4850,
               interestRate: 240, installment: 360, installmentCount: 12, paidInstallments: 7,
               dueDate: .now.addingTimeInterval(86400 * 9), priority: .high, status: .onTime),
@@ -239,13 +339,20 @@ final class AppState: ObservableObject {
 
     var totalDebt: Double { debts.reduce(0) { $0 + $1.remainingBalance } }
 
-    let cards: [CreditCard] = [
+    static let defaultCards: [CreditCard] = [
         .init(name: "Nubank", institution: "Nu Pagamentos", lastDigits: "4821", limit: 8000, used: 3850,
               currentInvoice: 1850, dueDay: 12),
         .init(name: "Itaú", institution: "Banco Itaú", lastDigits: "9903", limit: 5000, used: 2650,
               currentInvoice: 1150, dueDay: 5),
         .init(name: "Amex", institution: "American Express", lastDigits: "1044", limit: 3000, used: 2850,
               currentInvoice: 2850, dueDay: 18),
+    ]
+
+    static let defaultGoals: [Goal] = [
+        .init(kind: .debt, title: "Quitar dívidas", emoji: "banknote.fill", target: 18430, saved: 7420, monthlyContribution: 1200),
+        .init(kind: .reserve, title: "Reserva de emergência", emoji: "building.columns.fill", target: 18000, saved: 8600, monthlyContribution: 800),
+        .init(kind: .car, title: "Comprar carro", emoji: "car.fill", target: 45000, saved: 12300, monthlyContribution: 1500),
+        .init(kind: .travel, title: "Viagem", emoji: "airplane", target: 8000, saved: 3400, monthlyContribution: 500),
     ]
 
     let cardPurchases: [CardPurchase] = [
@@ -269,13 +376,6 @@ final class AppState: ObservableObject {
         .init(name: "Lazer", icon: "party.popper.fill", color: Theme.purple, limit: 700, spent: 920),
         .init(name: "Saúde", icon: "heart.fill", color: Theme.danger, limit: 500, spent: 290),
         .init(name: "Outros", icon: "ellipsis.circle.fill", color: Theme.textTertiary, limit: 600, spent: 420),
-    ]
-
-    let goals: [Goal] = [
-        .init(kind: .debt, title: "Quitar dívidas", emoji: "🎯", target: 18430, saved: 7420, monthlyContribution: 1200),
-        .init(kind: .reserve, title: "Reserva de emergência", emoji: "🏦", target: 18000, saved: 8600, monthlyContribution: 800),
-        .init(kind: .car, title: "Comprar carro", emoji: "🚗", target: 45000, saved: 12300, monthlyContribution: 1500),
-        .init(kind: .travel, title: "Viagem", emoji: "✈️", target: 8000, saved: 3400, monthlyContribution: 500),
     ]
 
     let insights: [InsightCard] = [
@@ -306,7 +406,7 @@ final class AppState: ObservableObject {
     let profileSections: [(title: String, icon: String, items: [(String, String)])] = [
         ("Preferências", "slider.horizontal.3", [("Aparência", "Escuro"), ("Moeda", "BRL"), ("Idioma", "Português")]),
         ("Segurança", "lock.shield.fill", [("Face ID", "Ativado"), ("Mudar senha", ""), ("Notificações", "Ativado")]),
-        ("Dados", "externaldrive.fill", [("Exportar dados", ""), ("Categorias", "14"), ("Privacidade", "")]),
+        ("Dados", "externaldrive.fill", [("Exportar dados", ""), ("Categorias", "14"), ("Privacidade", ""), ("Apagar meus dados", "")]),
         ("Conta", "person.crop.circle.fill", [("Sair", "")]),
     ]
 
@@ -316,6 +416,76 @@ final class AppState: ObservableObject {
         case ..<800: .init(verdict: .caution, reason: "Você consegue pagar, mas fique atento: o limite recomendado de gasto livre é R$ 600 este mês.", icon: "exclamationmark.triangle.fill")
         default: .init(verdict: .notRecommended, reason: "Esse valor ultrapassa seu limite recomendado de R$ 600 e pode atrasar sua meta de quitação.", icon: "xmark.seal.fill")
         }
+    }
+
+    // MARK: Persistência (UserDefaults)
+
+    /// Dados gravados localmente entre sessões do app.
+    private struct PersistedState: Codable {
+        var onboarded: Bool
+        var registered: Bool
+        var userName: String
+        var userEmail: String
+        var balance: Double
+        var transactions: [Transaction]
+        var debts: [Debt]
+        var cards: [CreditCard]
+        var goals: [Goal]
+    }
+
+    private func load() {
+        guard let data = UserDefaults.standard.data(forKey: Self.storageKey),
+              let state = try? JSONDecoder().decode(PersistedState.self, from: data) else { return }
+        onboarded = state.onboarded
+        registered = state.registered
+        userName = state.userName
+        userEmail = state.userEmail
+        balance = state.balance
+        transactions = state.transactions
+        debts = state.debts
+        cards = state.cards
+        goals = state.goals
+    }
+
+    private func save() {
+        let state = PersistedState(
+            onboarded: onboarded,
+            registered: registered,
+            userName: userName,
+            userEmail: userEmail,
+            balance: balance,
+            transactions: transactions,
+            debts: debts,
+            cards: cards,
+            goals: goals
+        )
+        if let data = try? JSONEncoder().encode(state) {
+            UserDefaults.standard.set(data, forKey: Self.storageKey)
+        }
+    }
+
+    // MARK: Sessão
+
+    /// Sai da conta mantendo os dados salvos no aparelho.
+    func logout() {
+        registered = false
+        selectedTab = .home
+    }
+
+    /// Apaga todos os dados locais (direito de exclusão da LGPD) e
+    /// volta para o onboarding.
+    func deleteAllData() {
+        UserDefaults.standard.removeObject(forKey: Self.storageKey)
+        onboarded = false
+        registered = false
+        userName = "Usuário"
+        userEmail = "usuario@email.com"
+        balance = 3240
+        transactions = Self.defaultTransactions
+        debts = Self.defaultDebts
+        cards = Self.defaultCards
+        goals = Self.defaultGoals
+        selectedTab = .home
     }
 }
 

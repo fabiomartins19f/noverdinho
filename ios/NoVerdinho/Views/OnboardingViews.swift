@@ -17,10 +17,18 @@ struct OnboardingView: View {
         VStack(spacing: 0) {
             Spacer()
 
+            Image("AppLogo")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 96, height: 96)
+                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .shadow(color: Theme.green.opacity(0.3), radius: 18, y: 6)
+
             Text("NO VERDINHO")
                 .font(.system(size: 34, weight: .black, design: .rounded))
                 .foregroundStyle(Theme.greenGradient)
                 .tracking(2)
+                .padding(.top, 14)
 
             Text("Organize. Quite. Evolua.")
                 .font(Fonts.bodyMedium())

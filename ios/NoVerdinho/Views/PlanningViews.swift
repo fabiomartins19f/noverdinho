@@ -88,14 +88,27 @@ struct GoalsView: View {
     var body: some View {
         ScreenScroll {
             VStack(alignment: .leading, spacing: 18) {
+                if app.goals.isEmpty {
+                    EmptyState(
+                        icon: "target",
+                        title: "Nenhuma meta",
+                        message: "Crie metas de reserva, viagem ou quitação para acompanhar seu progresso."
+                    )
+                    PrimaryButton("Criar meta", icon: "plus") {
+                        app.addPreset = .goal
+                        app.showAddSheet = true
+                    }
+                }
+
                 ForEach(app.goals) { goal in
                     AppCard {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack(spacing: 12) {
-                                Text(goal.emoji)
-                                    .font(.system(size: 26))
+                                Image(systemName: goal.emoji)
+                                    .font(.system(size: 22, weight: .semibold))
+                                    .foregroundStyle(Theme.green)
                                     .frame(width: 44, height: 44)
-                                    .background(Theme.surfaceAlt)
+                                    .background(Theme.greenSoft())
                                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(goal.title)
