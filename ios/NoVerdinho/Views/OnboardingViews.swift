@@ -4,14 +4,6 @@ import SwiftUI
 
 struct OnboardingView: View {
     @EnvironmentObject var app: AppState
-    @State private var page = 0
-
-    private let slides: [(icon: String, title: String, message: String)] = [
-        ("magnifyingglass.circle.fill", "Entenda sua situação", "Tenha clareza sobre seu dinheiro e um plano para chegar no verdinho."),
-        ("list.bullet.clipboard.fill", "Organize suas dívidas", "Centralize cartões, empréstimos e financiamentos em um só lugar."),
-        ("chart.line.uptrend.xyaxis", "Crie seu plano", "Avalanche ou bola de neve: escolha a estratégia ideal de quitação."),
-        ("leaf.fill", "Evolua financeiramente", "Acompanhe seu Nível No Verdinho subindo mês a mês."),
-    ]
 
     var body: some View {
         VStack(spacing: 0) {
@@ -37,48 +29,24 @@ struct OnboardingView: View {
 
             Spacer()
 
-            // Slides
-            TabView(selection: $page) {
-                ForEach(slides.indices, id: \.self) { index in
-                    VStack(spacing: 20) {
-                        Image(systemName: slides[index].icon)
-                            .font(.system(size: 64, weight: .light))
-                            .foregroundStyle(Theme.green)
-                            .frame(width: 140, height: 140)
-                            .background(Theme.greenSoft())
-                            .clipShape(Circle())
-                        Text(slides[index].title)
-                            .font(Fonts.headline(22))
-                            .foregroundStyle(Theme.text)
-                        Text(slides[index].message)
-                            .font(Fonts.body())
-                            .foregroundStyle(Theme.textSecondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 36)
-                    }
-                    .tag(index)
-                }
-            }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .frame(height: 320)
+            Image(systemName: "leaf.fill")
+                .font(.system(size: 64, weight: .light))
+                .foregroundStyle(Theme.green)
+                .frame(width: 140, height: 140)
+                .background(Theme.greenSoft())
+                .clipShape(Circle())
 
-            // Indicadores
-            HStack(spacing: 8) {
-                ForEach(slides.indices, id: \.self) { index in
-                    Capsule()
-                        .fill(index == page ? Theme.green : Theme.surfaceAlt)
-                        .frame(width: index == page ? 24 : 8, height: 8)
-                        .animation(.easeOut(duration: 0.2), value: page)
-                }
-            }
-            .padding(.bottom, 30)
+            Text("Entenda sua situação, organize suas dívidas e crie seu plano para chegar no verdinho.")
+                .font(Fonts.body())
+                .foregroundStyle(Theme.textSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 36)
+                .padding(.top, 20)
 
-            PrimaryButton(page < slides.count - 1 ? "Continuar" : "Começar", icon: page < slides.count - 1 ? nil : "leaf.fill") {
-                if page < slides.count - 1 {
-                    withAnimation { page += 1 }
-                } else {
-                    withAnimation { app.onboarded = true }
-                }
+            Spacer()
+
+            PrimaryButton("Começar", icon: "leaf.fill") {
+                withAnimation { app.onboarded = true }
             }
             .padding(.horizontal, 28)
 

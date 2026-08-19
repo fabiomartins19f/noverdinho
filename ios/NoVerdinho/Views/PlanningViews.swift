@@ -12,15 +12,6 @@ struct PlanningView: View {
     var body: some View {
         ScreenScroll {
             VStack(alignment: .leading, spacing: 20) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Planejamento")
-                        .font(Fonts.headline(20))
-                        .foregroundStyle(Theme.text)
-                    Text("Orçamento do mês: \(Money.format(totalLimit))")
-                        .font(Fonts.caption())
-                        .foregroundStyle(Theme.textSecondary)
-                }
-
                 // Resumo geral
                 AppCard {
                     VStack(alignment: .leading, spacing: 10) {

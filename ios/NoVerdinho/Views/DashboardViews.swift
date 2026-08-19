@@ -17,7 +17,7 @@ struct DashboardView: View {
         }
         .task {
             // Pequeno "carregamento" inicial para dar ritmo profissional.
-            try? await Task.sleep(for: .seconds(0.7))
+            try? await Task.sleep(for: .seconds(0.35))
             loading = false
         }
         .sheet(item: $editingTransaction) { transaction in
@@ -25,6 +25,7 @@ struct DashboardView: View {
                 .environmentObject(app)
                 .presentationDetents([.height(380)])
         }
+        .toolbar(.hidden, for: .navigationBar)
     }
 
     /// Variação do saldo nos últimos 7 dias (receitas − despesas).
@@ -306,9 +307,6 @@ struct DebtsView: View {
         ScreenScroll {
             VStack(alignment: .leading, spacing: 18) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Minhas dívidas")
-                        .font(Fonts.headline(20))
-                        .foregroundStyle(Theme.text)
                     Text(Money.format(app.totalDebt))
                         .font(Fonts.money(34))
                         .foregroundStyle(Theme.text)

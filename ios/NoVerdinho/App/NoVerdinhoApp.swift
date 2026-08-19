@@ -59,6 +59,7 @@ struct CustomTabBar: View {
         .background(
             Theme.surface.opacity(0.92)
                 .background(.ultraThinMaterial)
+                .ignoresSafeArea(edges: .bottom)
         )
         .overlay(alignment: .top) {
             Rectangle().fill(Theme.border).frame(height: 0.5)

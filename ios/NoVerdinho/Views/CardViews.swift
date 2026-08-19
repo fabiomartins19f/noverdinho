@@ -8,8 +8,6 @@ struct CardsView: View {
     var body: some View {
         ScreenScroll {
             VStack(alignment: .leading, spacing: 18) {
-                SectionTitle("Meus cartões")
-
                 if app.cards.isEmpty {
                     EmptyState(
                         icon: "creditcard.fill",
