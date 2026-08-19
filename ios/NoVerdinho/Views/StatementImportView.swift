@@ -19,11 +19,17 @@ struct StatementImportView: View {
     @State private var result: StatementParseResult?
     @State private var selectedCardName: String
     @State private var showImportConfirmation = false
+    @State private var importTitle = "Extrato adicionado"
     @State private var importMessage = ""
 
     init(card: CreditCard) {
         self.card = card
         _selectedCardName = State(initialValue: card.name)
+    }
+
+    /// Cartão selecionado para receber a fatura (segue a cor de marca dele).
+    private var selectedCard: CreditCard? {
+        app.cards.first { $0.name == selectedCardName }
     }
 
     var body: some View {
@@ -46,7 +52,7 @@ struct StatementImportView: View {
         ) { result in
             handlePDFImport(result)
         }
-        .alert("Extrato adicionado", isPresented: $showImportConfirmation) {
+        .alert(importTitle, isPresented: $showImportConfirmation) {
             Button("OK") { dismiss() }
         } message: {
             Text(importMessage)
@@ -68,15 +74,18 @@ struct StatementImportView: View {
 
     private var sourceTabs: some View {
         HStack(spacing: 8) {
+            // Aba ativa = quando nenhum PDF foi escolhido ainda.
+            let showingText = pastedText.isEmpty && pdfFileName == nil
+
             Button {
                 withAnimation { pastedText = ""; pdfFileName = nil; result = nil }
             } label: {
                 Label("Colar texto", systemImage: "doc.plaintext")
                     .font(Fonts.captionStrong())
-                    .foregroundStyle(Theme.text)
+                    .foregroundStyle(showingText ? Theme.background : Theme.text)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
-                    .background(Theme.surfaceAlt)
+                    .background(showingText ? Theme.green : Theme.surfaceAlt)
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
             .buttonStyle(.plain)
@@ -86,10 +95,10 @@ struct StatementImportView: View {
             } label: {
                 Label("Importar PDF", systemImage: "doc.fill")
                     .font(Fonts.captionStrong())
-                    .foregroundStyle(Theme.background)
+                    .foregroundStyle(showingText ? Theme.text : Theme.background)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
-                    .background(card.brandGradient)
+                    .background(showingText ? AnyShapeStyle(Theme.surfaceAlt) : AnyShapeStyle(selectedCard?.brandGradient ?? card.brandGradient))
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
             .buttonStyle(.plain)
@@ -128,7 +137,7 @@ struct StatementImportView: View {
             HStack(spacing: 12) {
                 Image(systemName: "doc.richtext.fill")
                     .font(.system(size: 20))
-                    .foregroundStyle(card.brandColor)
+                    .foregroundStyle(selectedCard?.brandColor ?? card.brandColor)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(pdfName)
                         .font(Fonts.bodyMedium())
@@ -144,8 +153,13 @@ struct StatementImportView: View {
                     result = nil
                 } label: {
                     Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 22))
                         .foregroundStyle(Theme.textTertiary)
                 }
+                .buttonStyle(.plain)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+                .accessibilityLabel("Remover PDF")
             }
             .padding(14)
             .background(Theme.surfaceAlt)
@@ -204,7 +218,7 @@ struct StatementImportView: View {
                                 .foregroundStyle(Theme.warning)
                         } else {
                             Image(systemName: "bag.fill")
-                                .foregroundStyle(card.brandColor)
+                                .foregroundStyle(selectedCard?.brandColor ?? card.brandColor)
                         }
                         VStack(alignment: .leading, spacing: 2) {
                             Text(line.description)
@@ -227,7 +241,9 @@ struct StatementImportView: View {
         }
 
         PrimaryButton("Adicionar à fatura (\(selectedCardName))", icon: "plus") {
-            importMessage = addStatementToCard(result)
+            let added = addStatementToCard(result)
+            importTitle = added ? "Extrato adicionado" : "Nada reconhecido"
+            importMessage = added
                 ? "As compras reconhecidas foram adicionadas à fatura do \(selectedCardName)."
                 : "Nenhuma compra reconhecida no texto. Verifique se o extrato foi colado por completo."
             showImportConfirmation = true
@@ -252,11 +268,20 @@ struct StatementImportView: View {
     private func handlePDFImport(_ result: Result<[URL], Error>) {
         switch result {
         case .failure(let error):
-            print("Falha ao importar PDF: \(error.localizedDescription)")
+            importMessage = "Não foi possível ler o PDF: \(error.localizedDescription)"
+            showImportConfirmation = true
         case .success(let urls):
-            guard let url = urls.first, url.startAccessingSecurityScopedResource() else { return }
+            guard let url = urls.first, url.startAccessingSecurityScopedResource() else {
+                importMessage = "Não foi possível acessar o arquivo selecionado."
+                showImportConfirmation = true
+                return
+            }
             defer { url.stopAccessingSecurityScopedResource() }
-            guard let document = PDFDocument(url: url), let text = document.string else { return }
+            guard let document = PDFDocument(url: url), let text = document.string else {
+                importMessage = "Este PDF não contém texto legível. Tente copiar o extrato como texto."
+                showImportConfirmation = true
+                return
+            }
             pdfFileName = url.lastPathComponent
             recognize(text)
         }
@@ -269,10 +294,18 @@ struct StatementImportView: View {
     private func addStatementToCard(_ result: StatementParseResult) -> Bool {
         guard let cardIndex = app.cards.firstIndex(where: { $0.name == selectedCardName }) else { return false }
 
+        var updated = app.cards[cardIndex]
         let purchases = result.lines
             .filter { !$0.isAdjustment }
-            .map { line in
-                CardPurchase(
+            .compactMap { line -> CardPurchase? in
+                // Evita duplicar compras já importadas (mesmo nome, valor e data).
+                let alreadyImported = updated.statementItems.contains { existing in
+                    existing.name == line.description
+                        && abs(existing.amount - line.amount) < 0.01
+                        && Calendar.current.isDate(existing.date, inSameDayAs: line.date ?? .now)
+                }
+                guard !alreadyImported else { return nil }
+                return CardPurchase(
                     name: line.description,
                     amount: line.amount,
                     installments: 1,
@@ -287,7 +320,6 @@ struct StatementImportView: View {
             return false
         }
 
-        var updated = app.cards[cardIndex]
         updated.statementItems.append(contentsOf: purchases)
         let total = purchases.reduce(0) { $0 + $1.amount }
         // O extrato representa o valor real da fatura/limite usado.

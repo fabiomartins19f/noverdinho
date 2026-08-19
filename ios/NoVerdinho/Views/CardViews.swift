@@ -95,7 +95,7 @@ struct CardVisualView: View {
                         Capsule().fill(Theme.surfaceAlt)
                         Capsule()
                             .fill(card.brandGradient)
-                            .frame(width: max(8, min(1, card.utilization)) * geo.size.width)
+                            .frame(width: max(0, min(1, card.utilization)) * geo.size.width)
                     }
                 }
                 .frame(height: 10)
@@ -136,8 +136,17 @@ struct CardDetailView: View {
     }
 
     private var allPurchases: [CardPurchase] {
-        // Compras manuais (mock) + compras vindas do extrato importado.
-        app.cardPurchases + liveCard.statementItems
+        // Compras do cartão: manuais (mock) + vindas do extrato importado.
+        liveCard.statementItems
+    }
+
+    /// Valor das próximas 3 faturas, calculado das parcelas ainda em aberto.
+    private var upcomingInvoices: [Double] {
+        (1...3).map { month in
+            allPurchases
+                .filter { $0.installments > $0.paidInstallments && $0.installments - $0.paidInstallments >= month }
+                .reduce(0) { $0 + $1.amount / Double($1.installments) }
+        }
     }
 
     var body: some View {
@@ -239,16 +248,22 @@ struct CardDetailView: View {
                 SectionTitle("Próximas faturas")
                 AppCard {
                     VStack(spacing: 12) {
-                        ForEach(1...3, id: \.self) { month in
+                        ForEach(Array(upcomingInvoices.enumerated()), id: \.offset) { index, value in
                             HStack {
-                                Text("Mês \(month + 1) • dia \(liveCard.dueDay)")
+                                Text("Mês \(index + 2) • dia \(liveCard.dueDay)")
                                     .font(Fonts.caption())
                                     .foregroundStyle(Theme.textSecondary)
                                 Spacer()
-                                Text(Money.format(liveCard.currentInvoice * 0.5 + Double(month) * 180))
+                                Text(value > 0 ? Money.format(value) : "—")
                                     .font(Fonts.captionStrong())
-                                    .foregroundStyle(Theme.text)
+                                    .foregroundStyle(value > 0 ? Theme.text : Theme.textTertiary)
                             }
+                        }
+                        if upcomingInvoices.allSatisfy({ $0 == 0 }) {
+                            Text("Sem parcelamentos em aberto — suas faturas futuras estão zeradas.")
+                                .font(Fonts.caption(12))
+                                .foregroundStyle(Theme.textTertiary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
                 }
@@ -264,6 +279,7 @@ struct CardDetailView: View {
                     Image(systemName: "trash")
                         .foregroundStyle(Theme.danger)
                 }
+                .accessibilityLabel("Remover cartão")
             }
         }
         .confirmationDialog(

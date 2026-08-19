@@ -6,6 +6,7 @@ struct CanISpendView: View {
     @EnvironmentObject var app: AppState
     @State private var amount = ""
     @State private var result: CanISpendResult?
+    @State private var inputError: String?
 
     var body: some View {
         ScreenScroll {
@@ -23,14 +24,28 @@ struct CanISpendView: View {
                             .font(Fonts.bodyMedium())
                             .foregroundStyle(Theme.text)
                         CurrencyField(value: $amount, placeholder: "500")
+                        if let inputError {
+                            Text(inputError)
+                                .font(Fonts.caption())
+                                .foregroundStyle(Theme.danger)
+                        }
                     }
                 }
 
                 PrimaryButton("Analisar", icon: "sparkles") {
-                    guard let value = Double(amount), value > 0 else { return }
+                    guard let value = Money.parse(amount) else {
+                        inputError = "Informe um valor válido (ex.: 500 ou 1.250,50)."
+                        Haptics.light()
+                        return
+                    }
+                    inputError = nil
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                         result = app.canISpend(value)
                     }
+                }
+                .onChange(of: amount) {
+                    // Nova análise a cada edição: esconde o resultado anterior.
+                    result = nil
                 }
 
                 if let result {
@@ -46,7 +61,7 @@ struct CanISpendView: View {
                                 .font(Fonts.body())
                                 .foregroundStyle(Theme.textSecondary)
                                 .multilineTextAlignment(.center)
-                            Text("Análise de \(Money.format(Double(amount) ?? 0))")
+                            Text("Análise de \(Money.format(Money.parse(amount) ?? 0))")
                                 .font(Fonts.caption())
                                 .foregroundStyle(Theme.textTertiary)
                         }
@@ -102,16 +117,28 @@ struct IntelligenceView: View {
                                 .font(Fonts.body())
                                 .foregroundStyle(Theme.text)
                             if let action = insight.action {
-                                Button {
-                                    app.selectedTab = .planning
-                                } label: {
-                                    HStack(spacing: 4) {
-                                        Text(action)
-                                            .font(Fonts.captionStrong())
-                                        Image(systemName: "arrow.right")
-                                            .font(.system(size: 11, weight: .bold))
+                                switch action {
+                                case "Ver cartão":
+                                    NavigationLink {
+                                        CardsView()
+                                    } label: {
+                                        actionLabel(action)
                                     }
-                                    .foregroundStyle(Theme.green)
+                                    .buttonStyle(.plain)
+                                case "Ver metas":
+                                    NavigationLink {
+                                        GoalsView()
+                                    } label: {
+                                        actionLabel(action)
+                                    }
+                                    .buttonStyle(.plain)
+                                default:
+                                    Button {
+                                        app.selectedTab = action == "Ajustar plano" ? .debts : .planning
+                                    } label: {
+                                        actionLabel(action)
+                                    }
+                                    .buttonStyle(.plain)
                                 }
                             }
                         }
@@ -121,6 +148,16 @@ struct IntelligenceView: View {
         }
         .navigationTitle("Inteligência")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func actionLabel(_ text: String) -> some View {
+        HStack(spacing: 4) {
+            Text(text)
+                .font(Fonts.captionStrong())
+            Image(systemName: "arrow.right")
+                .font(.system(size: 11, weight: .bold))
+        }
+        .foregroundStyle(Theme.green)
     }
 
     private func insightToneIcon(_ tone: InsightCard.Tone) -> String {

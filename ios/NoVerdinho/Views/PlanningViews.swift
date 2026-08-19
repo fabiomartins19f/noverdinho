@@ -28,11 +28,11 @@ struct PlanningView: View {
                                 .font(Fonts.captionStrong())
                                 .foregroundStyle(Theme.textSecondary)
                             Spacer()
-                            Text("\(Int(totalSpent / totalLimit * 100))%")
+                            Text(totalLimit > 0 ? "\(Int(totalSpent / totalLimit * 100))%" : "0%")
                                 .font(Fonts.captionStrong())
                                 .foregroundStyle(totalSpent > totalLimit ? Theme.danger : Theme.green)
                         }
-                        ProgressBar(progress: totalSpent / totalLimit,
+                        ProgressBar(progress: totalLimit > 0 ? totalSpent / totalLimit : 0,
                                     color: totalSpent > totalLimit ? Theme.danger : Theme.green,
                                     height: 12)
                         Text("\(Money.format(totalSpent)) de \(Money.format(totalLimit))")
@@ -114,7 +114,7 @@ struct GoalsView: View {
                                     Text(goal.title)
                                         .font(Fonts.bodyMedium())
                                         .foregroundStyle(Theme.text)
-                                    Text("R$ \(goal.monthlyContribution.formatted(.number.locale(Locale(identifier: "pt_BR"))))/mês")
+                                    Text("\(Money.format(goal.monthlyContribution))/mês")
                                         .font(Fonts.caption(12))
                                         .foregroundStyle(Theme.textSecondary)
                                 }

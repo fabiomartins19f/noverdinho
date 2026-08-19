@@ -48,6 +48,7 @@ struct CustomTabBar: View {
                     .shadow(color: Theme.green.opacity(0.4), radius: 12, y: 4)
             }
             .offset(y: -14)
+            .accessibilityLabel("Adicionar receita, despesa, dívida, cartão ou meta")
 
             ForEach([Tab.planning, Tab.profile], id: \.self) { tab in
                 tabButton(tab)

@@ -41,7 +41,7 @@ struct RegisterView: View {
                     }
                     .padding(.top, 24)
 
-                    // Continuar com Apple
+                    // Continuar com Apple (branco padrão do Apple Sign-In)
                     Button {
                         registerWithApple()
                     } label: {
@@ -51,13 +51,14 @@ struct RegisterView: View {
                             Text("Continuar com Apple")
                                 .font(Fonts.bodyMedium())
                         }
-                        .foregroundStyle(Theme.text)
+                        .foregroundStyle(Color.black)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
-                        .background(Theme.text)
+                        .background(Color.white)
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Continuar com Apple")
 
                     divider
 
@@ -91,7 +92,10 @@ struct RegisterView: View {
                                     Image(systemName: showPassword ? "eye.slash.fill" : "eye.fill")
                                         .font(.system(size: 15))
                                         .foregroundStyle(Theme.textTertiary)
+                                        .frame(width: 44, height: 44)
+                                        .contentShape(Rectangle())
                                 }
+                                .accessibilityLabel(showPassword ? "Ocultar senha" : "Mostrar senha")
                             }
                             .padding(.horizontal, 14)
                             .padding(.vertical, 13)

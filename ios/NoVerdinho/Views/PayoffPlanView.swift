@@ -4,22 +4,39 @@ import SwiftUI
 
 struct PayoffPlanView: View {
     let debt: Debt
+    @EnvironmentObject var app: AppState
     @Environment(\.dismiss) private var dismiss
-    @State private var monthlyAmount = "1200"
+    @State private var monthlyAmount: String
     @State private var strategy = 0
+
+    init(debt: Debt) {
+        self.debt = debt
+        _monthlyAmount = State(initialValue: String(format: "%.0f", debt.installment))
+    }
 
     private let strategies = [
         (name: "Avalanche", desc: "Ataca os juros maiores primeiro. Economiza mais no total.", icon: "chart.line.downtrend.xyaxis"),
         (name: "Bola de neve", desc: "Quita os menores saldos primeiro. Motivação mais rápida.", icon: "snowflake"),
     ]
 
+    /// Meses para quitar com aporte mensal e juros compostos.
     private var months: Int {
-        guard let amount = Double(monthlyAmount), amount > 0 else { return 0 }
-        return max(1, Int(ceil(debt.remainingBalance / amount)))
+        guard let amount = Money.parse(monthlyAmount), amount > 0 else { return 0 }
+        let rate = debt.interestRate / 100 / 12
+        guard rate > 0 else { return max(1, Int(ceil(debt.remainingBalance / amount))) }
+        // Aporte insuficiente sequer cobre os juros → plano inviável em prazo curto.
+        guard rate * debt.remainingBalance < amount else { return 120 }
+        let months = -log(1 - rate * debt.remainingBalance / amount) / log(1 + rate)
+        return max(1, Int(ceil(months)))
     }
 
+    /// Juros evitados em relação a seguir pagando só a parcela atual até o fim.
     private var estimatedEconomy: Double {
-        debt.interestRate > 0 ? debt.remainingBalance * 0.25 : 0
+        guard months > 0, let amount = Money.parse(monthlyAmount), amount > 0 else { return 0 }
+        let remainingMonths = max(debt.installmentCount - debt.paidInstallments, 0)
+        let currentInterest = Double(remainingMonths) * debt.installment - debt.remainingBalance
+        let planInterest = Double(months) * amount - debt.remainingBalance
+        return max(currentInterest - planInterest, 0)
     }
 
     var body: some View {
@@ -30,17 +47,18 @@ struct PayoffPlanView: View {
                         Image(systemName: "xmark")
                             .font(.system(size: 15, weight: .bold))
                             .foregroundStyle(Theme.textSecondary)
-                            .frame(width: 34, height: 34)
+                            .frame(width: 44, height: 44)
                             .background(Theme.surfaceAlt)
                             .clipShape(Circle())
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Fechar")
                     Spacer()
                     Text("Seu plano para ficar no verdinho")
                         .font(Fonts.headline(18))
                         .foregroundStyle(Theme.text)
                     Spacer()
-                    Color.clear.frame(width: 34, height: 34)
+                    Color.clear.frame(width: 44, height: 44)
                 }
 
                 AppCard {
@@ -120,13 +138,31 @@ struct PayoffPlanView: View {
                     }
                 }
 
-                PrimaryButton("Iniciar plano", icon: "leaf.fill") {
-                    dismiss()
-                }
+PrimaryButton("Iniciar plano", icon: "leaf.fill") {
+            startPlan()
+        }
             }
         }
         .background(Theme.background.ignoresSafeArea())
         .preferredColorScheme(.dark)
+    }
+
+    /// Cria uma meta de quitação real no app e encerra o plano.
+    private func startPlan() {
+        guard let amount = Money.parse(monthlyAmount), amount > 0 else { return }
+        app.goals.insert(
+            Goal(
+                kind: .debt,
+                title: "Quitar \(debt.creditor)",
+                emoji: "banknote.fill",
+                target: debt.remainingBalance,
+                saved: 0,
+                monthlyContribution: amount
+            ),
+            at: 0
+        )
+        Haptics.success()
+        dismiss()
     }
 
     private var payoffTimeline: some View {

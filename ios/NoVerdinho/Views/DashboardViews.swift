@@ -30,6 +30,21 @@ struct DashboardView: View {
         return income - expense
     }
 
+    /// Receitas do mês atual.
+    private var monthIncome: Double {
+        monthTransactions.filter { $0.kind == .income }.reduce(0) { $0 + $1.amount }
+    }
+
+    /// Despesas do mês atual.
+    private var monthExpense: Double {
+        monthTransactions.filter { $0.kind == .expense }.reduce(0) { $0 + $1.amount }
+    }
+
+    private var monthTransactions: [Transaction] {
+        let start = Calendar.current.dateInterval(of: .month, for: .now)?.start ?? .now
+        return app.transactions.filter { $0.date >= start }
+    }
+
     private var skeleton: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack {
@@ -73,6 +88,7 @@ struct DashboardView: View {
                             .foregroundStyle(Theme.surfaceElevated)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Abrir perfil")
                 }
 
                 // Saldo
@@ -94,10 +110,10 @@ struct DashboardView: View {
                     }
                 }
 
-                // Indicadores
+                // Indicadores (valores reais das transações)
                 HStack(spacing: 12) {
-                    miniIndicator("arrow.up.circle.fill", "Receitas", 7500, Theme.green)
-                    miniIndicator("arrow.down.circle.fill", "Despesas", 4260, Theme.danger)
+                    miniIndicator("arrow.down.left.circle.fill", "Receitas", monthIncome, Theme.green)
+                    miniIndicator("arrow.up.right.circle.fill", "Despesas", monthExpense, Theme.danger)
                     miniIndicator("banknote.fill", "Dívidas", app.totalDebt, Theme.warning)
                 }
 
@@ -122,24 +138,26 @@ struct DashboardView: View {
                     }
                 }
 
-                // Alerta inteligente
-                HStack(alignment: .top, spacing: 12) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 18))
-                        .foregroundStyle(Theme.warning)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Atenção")
-                            .font(Fonts.captionStrong())
+                // Alerta inteligente — só aparece quando há categoria estourando o limite
+                if let overBudget = app.budget.first(where: { $0.progress > 1 }) {
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 18))
                             .foregroundStyle(Theme.warning)
-                        Text("Suas despesas previstas para os próximos 15 dias estão acima do seu limite recomendado.")
-                            .font(Fonts.caption())
-                            .foregroundStyle(Theme.textSecondary)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Atenção")
+                                .font(Fonts.captionStrong())
+                                .foregroundStyle(Theme.warning)
+                            Text("\(overBudget.name) excedeu o limite do mês (\(Money.format(overBudget.spent)) de \(Money.format(overBudget.limit))). Ajuste seus gastos ou revise o orçamento.")
+                                .font(Fonts.caption())
+                                .foregroundStyle(Theme.textSecondary)
+                        }
+                        Spacer()
                     }
-                    Spacer()
+                    .padding(14)
+                    .background(Theme.warningSoft)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
-                .padding(14)
-                .background(Theme.warningSoft)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
                 // Próximos compromissos
                 SectionTitle("Próximos compromissos", action: ("Ver tudo", { app.selectedTab = .debts }))
@@ -252,6 +270,13 @@ struct DebtsView: View {
         }
     }
 
+    /// Total das parcelas das dívidas ativas neste mês.
+    private var monthlyInstallments: Double {
+        app.debts
+            .filter { $0.status != .paidOff }
+            .reduce(0) { $0 + $1.installment }
+    }
+
     var body: some View {
         ScreenScroll {
             VStack(alignment: .leading, spacing: 18) {
@@ -265,7 +290,7 @@ struct DebtsView: View {
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.down.right.circle.fill")
                             .font(.system(size: 12))
-                        Text("↓ R$ 2.170 este mês")
+                        Text("\(Money.format(monthlyInstallments)) em parcelas este mês")
                             .font(Fonts.caption(12))
                     }
                     .foregroundStyle(Theme.green)
@@ -293,10 +318,18 @@ struct DebtsView: View {
 
                 if filteredDebts.isEmpty {
                     EmptyState(
-                        icon: "checkmark.seal.fill",
-                        title: "Nada por aqui",
-                        message: "Nenhuma dívida \(filter == 1 ? "atrasada" : filter == 2 ? "em dia" : "quitada") neste filtro."
+                        icon: filter == 3 ? "checkmark.seal.fill" : "banknote.fill",
+                        title: filter == 0 ? "Nenhuma dívida" : "Nada por aqui",
+                        message: filter == 0
+                            ? "Cadastre suas dívidas para acompanhar a quitação."
+                            : "Nenhuma dívida \(filters[filter].lowercased()) neste filtro."
                     )
+                    if filter != 3 {
+                        PrimaryButton("Adicionar dívida", icon: "plus") {
+                            app.addPreset = .debt
+                            app.showAddSheet = true
+                        }
+                    }
                 }
 
                 ForEach(filteredDebts) { debt in
@@ -309,6 +342,8 @@ struct DebtsView: View {
                 }
             }
         }
+        .navigationTitle("Minhas dívidas")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
@@ -343,7 +378,7 @@ struct DebtCardView: View {
                         .font(Fonts.headline(20))
                         .foregroundStyle(Theme.text)
                     Spacer()
-                    Text("R$ \(debt.installment.formatted(.number.locale(Locale(identifier: "pt_BR"))))/mês")
+                    Text("\(Money.format(debt.installment))/mês")
                         .font(Fonts.caption())
                         .foregroundStyle(Theme.textSecondary)
                 }
@@ -356,9 +391,9 @@ struct DebtCardView: View {
                         Spacer()
                         Text("\(Int(debt.progress * 100))%")
                             .font(Fonts.captionStrong(12))
-                            .foregroundStyle(debt.priority.color)
+                            .foregroundStyle(Theme.green)
                     }
-                    ProgressBar(progress: debt.progress, color: debt.priority.color)
+                    ProgressBar(progress: debt.progress, color: Theme.green)
                 }
 
                 HStack(spacing: 12) {

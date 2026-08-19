@@ -39,6 +39,7 @@ struct PrimaryButton: View {
     let title: String
     let icon: String?
     let action: () -> Void
+    @Environment(\.isEnabled) private var isEnabled
 
     init(_ title: String, icon: String? = nil, action: @escaping () -> Void) {
         self.title = title
@@ -60,6 +61,7 @@ struct PrimaryButton: View {
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .buttonStyle(.plain)
+        .opacity(isEnabled ? 1 : 0.5)
     }
 }
 
@@ -306,7 +308,9 @@ struct BarChart: View {
                 VStack(spacing: 6) {
                     HStack(alignment: .bottom, spacing: 3) {
                         ForEach(series.indices, id: \.self) { seriesIndex in
-                            let value = series[seriesIndex].values[index]
+                            // Segurança: série com menos valores que labels
+                            // exibe 0 em vez de estourar o índice.
+                            let value = index < series[seriesIndex].values.count ? series[seriesIndex].values[index] : 0
                             RoundedRectangle(cornerRadius: 3, style: .continuous)
                                 .fill(series[seriesIndex].color)
                                 .frame(width: 10, height: max(2, (value / maxValue) * height))

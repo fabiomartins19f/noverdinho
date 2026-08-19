@@ -350,7 +350,13 @@ final class AppState: ObservableObject {
 
     static let defaultCards: [CreditCard] = [
         .init(name: "Nubank", institution: "Nu Pagamentos", lastDigits: "4821", limit: 8000, used: 3850,
-              currentInvoice: 1850, dueDay: 12),
+              currentInvoice: 1850, dueDay: 12,
+              statementItems: [
+                  .init(name: "Passagem aérea", amount: 1840, installments: 6, paidInstallments: 2, date: .now.addingTimeInterval(-86400 * 40)),
+                  .init(name: "Notebook", amount: 5200, installments: 10, paidInstallments: 4, date: .now.addingTimeInterval(-86400 * 90)),
+                  .init(name: "Restaurante", amount: 340, installments: 1, paidInstallments: 1, date: .now.addingTimeInterval(-86400 * 12)),
+                  .init(name: "Curso online", amount: 1200, installments: 3, paidInstallments: 1, date: .now.addingTimeInterval(-86400 * 25)),
+              ]),
         .init(name: "Itaú", institution: "Banco Itaú", lastDigits: "9903", limit: 5000, used: 2650,
               currentInvoice: 1150, dueDay: 5),
         .init(name: "Amex", institution: "American Express", lastDigits: "1044", limit: 3000, used: 2850,
@@ -362,13 +368,6 @@ final class AppState: ObservableObject {
         .init(kind: .reserve, title: "Reserva de emergência", emoji: "building.columns.fill", target: 18000, saved: 8600, monthlyContribution: 800),
         .init(kind: .car, title: "Comprar carro", emoji: "car.fill", target: 45000, saved: 12300, monthlyContribution: 1500),
         .init(kind: .travel, title: "Viagem", emoji: "airplane", target: 8000, saved: 3400, monthlyContribution: 500),
-    ]
-
-    let cardPurchases: [CardPurchase] = [
-        .init(name: "Passagem aérea", amount: 1840, installments: 6, paidInstallments: 2, date: .now.addingTimeInterval(-86400 * 40)),
-        .init(name: "Notebook", amount: 5200, installments: 10, paidInstallments: 4, date: .now.addingTimeInterval(-86400 * 90)),
-        .init(name: "Restaurante", amount: 340, installments: 1, paidInstallments: 1, date: .now.addingTimeInterval(-86400 * 12)),
-        .init(name: "Curso online", amount: 1200, installments: 3, paidInstallments: 1, date: .now.addingTimeInterval(-86400 * 25)),
     ]
 
     let upcomingPayments: [UpcomingPayment] = [
@@ -421,9 +420,9 @@ final class AppState: ObservableObject {
 
     func canISpend(_ amount: Double) -> CanISpendResult {
         switch amount {
-        case ..<300: .init(verdict: .ok, reason: "Você tem folga no orçamento e nenhum compromisso crítico nos próximos 30 dias.", icon: "checkmark.seal.fill")
-        case ..<800: .init(verdict: .caution, reason: "Você consegue pagar, mas fique atento: o limite recomendado de gasto livre é R$ 600 este mês.", icon: "exclamationmark.triangle.fill")
-        default: .init(verdict: .notRecommended, reason: "Esse valor ultrapassa seu limite recomendado de R$ 600 e pode atrasar sua meta de quitação.", icon: "xmark.seal.fill")
+        case ..<600: .init(verdict: .ok, reason: "Você tem folga no orçamento e nenhum compromisso crítico nos próximos 30 dias.", icon: "checkmark.seal.fill")
+        case ..<1000: .init(verdict: .caution, reason: "Esse valor ultrapassa o limite recomendado de R$ 600 de gasto livre este mês. Avalie antes de gastar.", icon: "exclamationmark.triangle.fill")
+        default: .init(verdict: .notRecommended, reason: "Esse valor está muito acima do limite recomendado de R$ 600 e pode atrasar sua meta de quitação.", icon: "xmark.seal.fill")
         }
     }
 

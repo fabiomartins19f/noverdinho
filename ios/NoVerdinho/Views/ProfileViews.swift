@@ -111,14 +111,24 @@ struct ReportsView: View {
                     Text("Resumo")
                         .font(Fonts.captionStrong())
                         .foregroundStyle(Theme.textSecondary)
-                    IndicatorRow(icon: "arrow.up.forward.circle.fill", title: "Receitas", value: Money.format(8700), color: Theme.green)
-                    IndicatorRow(icon: "arrow.down.right.circle.fill", title: "Despesas", value: Money.format(4260), color: Theme.danger)
+                    IndicatorRow(icon: "arrow.down.left.circle.fill", title: "Receitas", value: Money.format(incomeTotal), color: Theme.green)
+                    IndicatorRow(icon: "arrow.up.right.circle.fill", title: "Despesas", value: Money.format(expenseTotal), color: Theme.danger)
                     IndicatorRow(icon: "banknote.fill", title: "Dívidas", value: Money.format(app.totalDebt), color: Theme.warning)
-                    IndicatorRow(icon: "leaf.fill", title: "Economia", value: Money.format(4440), color: Theme.greenBright)
+                    IndicatorRow(icon: "leaf.fill", title: "Economia", value: Money.format(max(incomeTotal - expenseTotal, 0)), color: Theme.greenBright)
                     IndicatorRow(icon: "chart.line.uptrend.xyaxis", title: "Nível", value: "\(app.level.score)/100", color: Theme.purple)
                 }
             }
         }
+    }
+
+    /// Receitas somadas de todas as transações cadastradas.
+    private var incomeTotal: Double {
+        app.transactions.filter { $0.kind == .income }.reduce(0) { $0 + $1.amount }
+    }
+
+    /// Despesas somadas de todas as transações cadastradas.
+    private var expenseTotal: Double {
+        app.transactions.filter { $0.kind == .expense }.reduce(0) { $0 + $1.amount }
     }
 
     private var maxTotal: Double {
@@ -153,6 +163,7 @@ struct AddSheetView: View {
     @State private var cardDueDayText = "10"
     // Meta
     @State private var goalKind: Goal.Kind = .reserve
+    @State private var monthlyContributionText = ""
 
     private let categories = ["Alimentação", "Transporte", "Lazer", "Saúde", "Moradia", "Outros"]
 
@@ -168,11 +179,12 @@ struct AddSheetView: View {
                     Image(systemName: "xmark")
                         .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(Theme.textSecondary)
-                        .frame(width: 32, height: 32)
+                        .frame(width: 44, height: 44)
                         .background(Theme.surfaceAlt)
                         .clipShape(Circle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Fechar")
             }
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
@@ -250,11 +262,28 @@ struct AddSheetView: View {
 
     private func select(_ type: AddSheetType) {
         Haptics.light()
+        resetFields()
         withAnimation(.easeOut(duration: 0.2)) {
             selectedType = type
-            formError = nil
             showForm = true
         }
+    }
+
+    /// Limpa todos os campos para que nada "vaze" entre os tipos do formulário.
+    private func resetFields() {
+        amountText = ""
+        detail = ""
+        category = "Outros"
+        creditor = ""
+        installmentsText = "1"
+        interestText = "0"
+        cardInstitution = ""
+        cardDigits = ""
+        cardLimitText = ""
+        cardDueDayText = "10"
+        goalKind = .reserve
+        monthlyContributionText = ""
+        formError = nil
     }
 
     /// Suporta o atalho "Adicionar cartão" (ex.: tela de cartões vazia).
@@ -395,7 +424,7 @@ struct AddSheetView: View {
                 Text("Aporte mensal")
                     .font(Fonts.caption())
                     .foregroundStyle(Theme.textSecondary)
-                TextField("0", text: $creditor)
+                TextField("0", text: $monthlyContributionText)
                     .keyboardType(.decimalPad)
                     .font(Fonts.body())
                     .foregroundStyle(Theme.text)
@@ -480,7 +509,7 @@ struct AddSheetView: View {
             guard let target = parseAmount(amountText), !detail.isEmpty else {
                 return fail("Informe o nome e o valor alvo da meta.")
             }
-            let monthly = Double(creditor) ?? 0
+            let monthly = Money.parse(monthlyContributionText) ?? 0
             app.goals.insert(Goal(
                 kind: goalKind, title: detail, emoji: goalKind.icon,
                 target: target, saved: 0, monthlyContribution: monthly
@@ -511,6 +540,7 @@ struct ProfileView: View {
     @EnvironmentObject var app: AppState
     @State private var confirmLogout = false
     @State private var confirmDelete = false
+    @State private var showComingSoon = false
 
     var body: some View {
         ScreenScroll {
@@ -708,22 +738,26 @@ struct ProfileView: View {
                                     }
                                     .buttonStyle(.plain)
                                 } else {
-                                    HStack {
-                                        Text(item.0)
-                                            .font(Fonts.body())
-                                            .foregroundStyle(Theme.text)
-                                        Spacer()
-                                        Text(item.1)
-                                            .font(Fonts.caption())
-                                            .foregroundStyle(Theme.textSecondary)
-                                        if item.0 != "Sair" {
+                                    Button {
+                                        Haptics.light()
+                                        showComingSoon = true
+                                    } label: {
+                                        HStack {
+                                            Text(item.0)
+                                                .font(Fonts.body())
+                                                .foregroundStyle(Theme.text)
+                                            Spacer()
+                                            Text(item.1)
+                                                .font(Fonts.caption())
+                                                .foregroundStyle(Theme.textSecondary)
                                             Image(systemName: "chevron.right")
                                                 .font(.system(size: 11, weight: .semibold))
                                                 .foregroundStyle(Theme.textTertiary)
                                         }
+                                        .padding(.vertical, 10)
+                                        .contentShape(Rectangle())
                                     }
-                                    .padding(.vertical, 10)
-                                    .contentShape(Rectangle())
+                                    .buttonStyle(.plain)
                                 }
                             }
                         }
@@ -748,6 +782,11 @@ struct ProfileView: View {
             Button("Cancelar", role: .cancel) {}
         } message: {
             Text("Conforme a LGPD, todos os dados locais serão removidos e você voltará ao início.")
+        }
+        .alert("Em breve", isPresented: $showComingSoon) {
+            Button("OK") {}
+        } message: {
+            Text("Essa configuração chegará em uma próxima versão do No Verdinho.")
         }
     }
 }

@@ -38,7 +38,7 @@ enum Theme {
     // Texto
     static let text = Color(hex: "F3F7F4")
     static let textSecondary = Color(hex: "9AA79F")
-    static let textTertiary = Color(hex: "5F6D64")
+    static let textTertiary = Color(hex: "7A8A80")
 
     // Semânticas
     static let danger = Color(hex: "FF5A5F")
@@ -54,6 +54,9 @@ enum Theme {
 // MARK: - Tipografia
 
 enum Fonts {
+    // Fonte arredondada do app. Os tamanhos são fixos para manter o layout
+    // das telas; o suporte completo a Dynamic Type (escala de acessibilidade)
+    // está planejado como melhoria futura.
     static func title(_ size: CGFloat = 28) -> Font { .system(size: size, weight: .bold, design: .rounded) }
     static func headline(_ size: CGFloat = 20) -> Font { .system(size: size, weight: .semibold, design: .rounded) }
     static func body(_ size: CGFloat = 16) -> Font { .system(size: size, weight: .regular, design: .rounded) }
@@ -84,9 +87,20 @@ enum Money {
             .trimmingCharacters(in: .whitespaces)
         let normalized: String
         if trimmed.contains(",") {
+            // "1.250,50" → "1250.50"
             normalized = trimmed
                 .replacingOccurrences(of: ".", with: "")
                 .replacingOccurrences(of: ",", with: ".")
+        } else if trimmed.contains(".") {
+            // Sem vírgula: o ponto é separador de milhar quando há 3 dígitos
+            // após o último ponto ("2.500" → 2500); caso contrário é decimal
+            // ("1250.50" → 1250.5).
+            if let lastDot = trimmed.lastIndex(of: "."),
+               trimmed.distance(from: lastDot, to: trimmed.endIndex) == 4 {
+                normalized = trimmed.replacingOccurrences(of: ".", with: "")
+            } else {
+                normalized = trimmed
+            }
         } else {
             normalized = trimmed
         }
@@ -101,7 +115,8 @@ enum Money {
             formatter.numberStyle = .decimal
             formatter.locale = Locale(identifier: "pt_BR")
             formatter.maximumFractionDigits = absValue >= 100000 ? 0 : 1
-            return "R$ \(formatter.string(from: NSNumber(value: absValue / 1000)) ?? "0") mil"
+            let compact = formatter.string(from: NSNumber(value: absValue / 1000)) ?? "0"
+            return value < 0 ? "-R$ \(compact) mil" : "R$ \(compact) mil"
         }
         return format(value)
     }

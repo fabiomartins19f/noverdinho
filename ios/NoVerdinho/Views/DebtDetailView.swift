@@ -78,15 +78,22 @@ struct DebtDetailView: View {
                 }
 
                 SectionTitle("Histórico de pagamentos")
-                AppCard {
-                    VStack(spacing: 14) {
-                        paymentRow(month: -1, value: 780, status: "Pago")
-                        Divider().overlay(Theme.border)
-                        paymentRow(month: -2, value: 780, status: "Pago")
-                        Divider().overlay(Theme.border)
-                        paymentRow(month: -3, value: 780, status: "Pago")
-                        Divider().overlay(Theme.border)
-                        paymentRow(month: -4, value: 780, status: "Pago")
+                if debt.paidInstallments == 0 {
+                    EmptyState(
+                        icon: "clock.arrow.circlepath",
+                        title: "Nenhum pagamento ainda",
+                        message: "Os pagamentos aparecerão aqui conforme você quitar as parcelas."
+                    )
+                } else {
+                    AppCard {
+                        VStack(spacing: 14) {
+                            ForEach(paymentHistory, id: \.self) { installmentNumber in
+                                paymentRow(installmentNumber: installmentNumber)
+                                if installmentNumber != paymentHistory.last {
+                                    Divider().overlay(Theme.border)
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -115,26 +122,34 @@ struct DebtDetailView: View {
         }
     }
 
-    private func paymentRow(month: Int, value: Double, status: String) -> some View {
+    /// Números das parcelas pagas, da mais recente para a mais antiga
+    /// (mostra até as 4 últimas).
+    private var paymentHistory: [Int] {
+        let last = debt.paidInstallments
+        guard last > 0 else { return [] }
+        return Array((max(1, last - 3)...last).reversed())
+    }
+
+    private func paymentRow(installmentNumber: Int) -> some View {
         HStack(spacing: 12) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 18))
                 .foregroundStyle(Theme.green)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Parcela \(debt.paidInstallments + month + 1)")
+                Text("Parcela \(installmentNumber)")
                     .font(Fonts.bodyMedium())
                     .foregroundStyle(Theme.text)
-                Text(Calendar.current.date(byAdding: .month, value: month, to: .now)?
+                Text(Calendar.current.date(byAdding: .month, value: installmentNumber - debt.paidInstallments, to: .now)?
                     .formatted(.dateTime.day().month().year()) ?? "")
                     .font(Fonts.caption(12))
                     .foregroundStyle(Theme.textSecondary)
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
-                Text(Money.format(value))
+                Text(Money.format(debt.installment))
                     .font(Fonts.captionStrong())
                     .foregroundStyle(Theme.text)
-                Text(status)
+                Text("Pago")
                     .font(Fonts.caption(12))
                     .foregroundStyle(Theme.green)
             }

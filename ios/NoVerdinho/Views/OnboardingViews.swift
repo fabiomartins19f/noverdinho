@@ -96,7 +96,7 @@ struct DiagnosticView: View {
     @State private var income = ""
     @State private var fixedExpenses = ""
     @State private var debtTotal = ""
-    @State private var cardCount = ""
+    @State private var cardCount = "1"
     @State private var monthlySave = ""
     @State private var finished = false
 
@@ -140,7 +140,10 @@ struct DiagnosticView: View {
                 .foregroundStyle(Theme.text)
                 .fixedSize(horizontal: false, vertical: true)
 
-            CurrencyField(value: currentBinding, placeholder: "0,00")
+            // Pergunta de cartões não usa campo de valor — só os botões 1–4.
+            if step != 3 {
+                CurrencyField(value: currentBinding, placeholder: "0,00")
+            }
 
             if step == 3 {
                 HStack(spacing: 8) {
