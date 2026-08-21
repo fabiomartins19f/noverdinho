@@ -131,6 +131,13 @@ struct NoVerdinhoApp: App {
                             AddSheetContainer()
                         }
                     }
+                    .overlay {
+                        if app.isLocked {
+                            LockView()
+                                .transition(.opacity)
+                                .zIndex(10)
+                        }
+                    }
                 }
             }
             .appBackground()

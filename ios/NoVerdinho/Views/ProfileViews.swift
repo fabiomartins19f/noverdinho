@@ -1,6 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 import CoreTransferable
+import LocalAuthentication
 
 // MARK: - TELA: Perfil
 
@@ -54,6 +55,25 @@ struct ProfileView: View {
                                         .frame(width: 44, height: 44)
                                         .contentShape(Rectangle())
                                 }
+                            }
+                            settingsRow(
+                                icon: "faceid",
+                                title: "Trava de segurança",
+                                subtitle: app.appLockEnabled ? "Ativa — Face ID ou senha ao abrir" : "Proteja o app com Face ID ou senha"
+                            ) {
+                                Toggle("", isOn: Binding(
+                                    get: { app.appLockEnabled },
+                                    set: { enable in
+                                        if enable {
+                                            requestBiometricEnablement()
+                                        } else {
+                                            app.appLockEnabled = false
+                                        }
+                                    }
+                                ))
+                                .labelsHidden()
+                                .tint(Theme.green)
+                                .accessibilityLabel("Trava de segurança com Face ID")
                             }
                         }
                     }
@@ -142,6 +162,23 @@ struct ProfileView: View {
             trailing()
         }
         .padding(.vertical, 4)
+    }
+
+    /// Só ativa a trava após autenticação bem-sucedida — assim nunca
+    /// bloqueamos um aparelho sem biometria configurada.
+    private func requestBiometricEnablement() {
+        let context = LAContext()
+        var error: NSError?
+        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else {
+            Haptics.error()
+            return
+        }
+        context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "Ativar a trava do No Verdinho") { success, _ in
+            DispatchQueue.main.async {
+                app.appLockEnabled = success
+                if success { Haptics.success() } else { Haptics.error() }
+            }
+        }
     }
 
     /// JSON completo para backup do usuário.
