@@ -32,6 +32,32 @@ struct CanISpendView: View {
                     analysisCard(result)
                 }
 
+                NavigationLink {
+                    PurchaseSimulatorView()
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "cart.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundStyle(Theme.greenBright)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("E se eu comprar?")
+                                .font(Fonts.bodyMedium())
+                                .foregroundStyle(Theme.text)
+                            Text("Simule parcelas, nível verde e atraso nas metas")
+                                .font(Fonts.caption(12))
+                                .foregroundStyle(Theme.textSecondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(Theme.textTertiary)
+                    }
+                    .padding(16)
+                    .background(Theme.soft(Theme.green))
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+                .buttonStyle(.plain)
+
                 AppCard {
                     VStack(alignment: .leading, spacing: 10) {
                         SectionTitle("Como calculamos")

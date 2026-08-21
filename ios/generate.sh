@@ -18,6 +18,12 @@ sed -i '' 's/TARGETED_DEVICE_FAMILY = "1,2";/TARGETED_DEVICE_FAMILY = "1";/g' \
   NoVerdinho.xcodeproj/project.pbxproj
 
 write_scheme() {
+  # Com `schemes:` no project.yml o xcodegen já gera o scheme compartilhado
+  # (incluindo os testes). Este fallback só atua se ele não existir.
+  if [ -f NoVerdinho.xcodeproj/xcshareddata/xcschemes/NoVerdinho.xcscheme ]; then
+    echo "Scheme compartilhado já gerado pelo xcodegen."
+    return
+  fi
   local uuid
   uuid=$(grep -B1 'isa = PBXNativeTarget;' NoVerdinho.xcodeproj/project.pbxproj \
     | grep 'NoVerdinho' | grep -oE '[0-9A-F]{24}' | head -1 || true)

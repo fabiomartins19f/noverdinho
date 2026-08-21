@@ -7,8 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		123678D5F70E0D802716BECB /* PayoffSimulator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AC475019653E113F4E4965E /* PayoffSimulator.swift */; };
+		1FF12520EED50C5325B31629 /* PurchaseSimulator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D8F75A64F95256DFB77D6DF /* PurchaseSimulator.swift */; };
 		21D89398904C25AA4FEDDB37 /* DashboardViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEF52D8FE927817A9988A134 /* DashboardViews.swift */; };
 		2A3759B253203DDCC3782D56 /* NoVerdinhoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCD51AF2E5C7DBE1BD164C6B /* NoVerdinhoApp.swift */; };
+		42A72180F3065F9F2F7B3460 /* StatementParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 848F62759F592B9BB2E4CE76 /* StatementParserTests.swift */; };
 		4927314DD5AD73E2A1DFF627 /* PlanningViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32D72194984DDE87946B1840 /* PlanningViews.swift */; };
 		49A7020F4B9970E134C95899 /* PayoffPlanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 706D636C5CE21DE212669143 /* PayoffPlanView.swift */; };
 		4BD921761020CC8668F68587 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB060C30E76087677A4F6523 /* Theme.swift */; };
@@ -18,27 +21,51 @@
 		5B70E9C15F6ED839DEF48304 /* OnboardingViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9E238D06377AA652FAAD66C /* OnboardingViews.swift */; };
 		6090813F0B8E42DD12CE0290 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = D650514DD2EEAF6B09D6EC43 /* Models.swift */; };
 		6ED67FF26B5F91924EDB67D5 /* ProfileViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 119896BE080BF7614B52C10C /* ProfileViews.swift */; };
+		8A0F5E9533D0CB739145DFA0 /* LockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41D2E385A26AFFB5ADCC05A /* LockView.swift */; };
+		92599ED96AAF49F676D756FC /* PurchaseSimulatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30DA9AE7EB564C8EDB6FCE7F /* PurchaseSimulatorView.swift */; };
 		97F76820848918D14ECC3F2D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F2B100F2E9EE3842967296F0 /* Assets.xcassets */; };
 		A7D68B637041FBBE2E746D05 /* CardViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34E329AF5472026EA1740AFF /* CardViews.swift */; };
 		B11921CE5EDB4F96DF18A540 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = E906C55DC4D942AAC38F1F1F /* Components.swift */; };
+		D603E77AE56DA1B49EC750EF /* PurchaseSimulatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EAA8FCD5EEB292F1A3735B6 /* PurchaseSimulatorTests.swift */; };
+		DBB894396FFE5302836248D2 /* PayoffSimulatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24F38894CFAE5BFB0F7D05DF /* PayoffSimulatorTests.swift */; };
 		E7C27A964F32C592E039809C /* InsightViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BD421CD56CFDBE13A64FC3C /* InsightViews.swift */; };
+		EB3490BD89930DD0496D43B5 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7CA7F345D48546C2B4F0A78B /* PrivacyInfo.xcprivacy */; };
 		FDABC22EB9A88418877AD021 /* StatementParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76F1F29871D36FCF0BE3AD45 /* StatementParser.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		E79CD08C3CA13C989F3485D0 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 59BD6391A02B9605A22D4E00 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8460C0AC98ED751140C71F67;
+			remoteInfo = NoVerdinho;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		119896BE080BF7614B52C10C /* ProfileViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileViews.swift; sourceTree = "<group>"; };
 		15AF6F5A287BB8469F7D96CA /* DebtDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebtDetailView.swift; sourceTree = "<group>"; };
-		1C7F2B5FC7D30924D99EB4FA /* NoVerdinho.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NoVerdinho.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		1C7F2B5FC7D30924D99EB4FA /* NoVerdinho.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = NoVerdinho.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		24F38894CFAE5BFB0F7D05DF /* PayoffSimulatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PayoffSimulatorTests.swift; sourceTree = "<group>"; };
 		2F8D8594E3000C2F0048B367 /* RegisterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegisterView.swift; sourceTree = "<group>"; };
+		30DA9AE7EB564C8EDB6FCE7F /* PurchaseSimulatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseSimulatorView.swift; sourceTree = "<group>"; };
 		32D72194984DDE87946B1840 /* PlanningViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanningViews.swift; sourceTree = "<group>"; };
 		34E329AF5472026EA1740AFF /* CardViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardViews.swift; sourceTree = "<group>"; };
+		3DFE132C14B186E2F18E1B9F /* NoVerdinhoTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = NoVerdinhoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		3EAA8FCD5EEB292F1A3735B6 /* PurchaseSimulatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseSimulatorTests.swift; sourceTree = "<group>"; };
 		4BD421CD56CFDBE13A64FC3C /* InsightViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightViews.swift; sourceTree = "<group>"; };
 		706D636C5CE21DE212669143 /* PayoffPlanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PayoffPlanView.swift; sourceTree = "<group>"; };
 		76F1F29871D36FCF0BE3AD45 /* StatementParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatementParser.swift; sourceTree = "<group>"; };
+		7CA7F345D48546C2B4F0A78B /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		848F62759F592B9BB2E4CE76 /* StatementParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatementParserTests.swift; sourceTree = "<group>"; };
+		8D8F75A64F95256DFB77D6DF /* PurchaseSimulator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseSimulator.swift; sourceTree = "<group>"; };
+		9AC475019653E113F4E4965E /* PayoffSimulator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PayoffSimulator.swift; sourceTree = "<group>"; };
 		AA068E5AE465CBD2E0B0C3A5 /* StatementImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatementImportView.swift; sourceTree = "<group>"; };
 		BEF52D8FE927817A9988A134 /* DashboardViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViews.swift; sourceTree = "<group>"; };
 		D650514DD2EEAF6B09D6EC43 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		DB060C30E76087677A4F6523 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		E41D2E385A26AFFB5ADCC05A /* LockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LockView.swift; sourceTree = "<group>"; };
 		E906C55DC4D942AAC38F1F1F /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
 		E9E238D06377AA652FAAD66C /* OnboardingViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingViews.swift; sourceTree = "<group>"; };
 		F2B100F2E9EE3842967296F0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -46,6 +73,17 @@
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
+		2C6757F5DCB69C51B4F27C95 /* NoVerdinhoTests */ = {
+			isa = PBXGroup;
+			children = (
+				24F38894CFAE5BFB0F7D05DF /* PayoffSimulatorTests.swift */,
+				3EAA8FCD5EEB292F1A3735B6 /* PurchaseSimulatorTests.swift */,
+				848F62759F592B9BB2E4CE76 /* StatementParserTests.swift */,
+			);
+			name = NoVerdinhoTests;
+			path = Tests/NoVerdinhoTests;
+			sourceTree = "<group>";
+		};
 		356DCBB8809A91A57B233466 /* Components */ = {
 			isa = PBXGroup;
 			children = (
@@ -58,6 +96,7 @@
 			isa = PBXGroup;
 			children = (
 				4708CFC255FE0554AEE7301E /* NoVerdinho */,
+				2C6757F5DCB69C51B4F27C95 /* NoVerdinhoTests */,
 				DA54509C0877D0F53BC9CCB2 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -66,6 +105,7 @@
 			isa = PBXGroup;
 			children = (
 				F2B100F2E9EE3842967296F0 /* Assets.xcassets */,
+				7CA7F345D48546C2B4F0A78B /* PrivacyInfo.xcprivacy */,
 				CA8FDA6A51C1A63D937167A5 /* App */,
 				356DCBB8809A91A57B233466 /* Components */,
 				A37A8A0F91225C3B1B4501EF /* Models */,
@@ -87,6 +127,8 @@
 			isa = PBXGroup;
 			children = (
 				D650514DD2EEAF6B09D6EC43 /* Models.swift */,
+				9AC475019653E113F4E4965E /* PayoffSimulator.swift */,
+				8D8F75A64F95256DFB77D6DF /* PurchaseSimulator.swift */,
 				76F1F29871D36FCF0BE3AD45 /* StatementParser.swift */,
 			);
 			path = Models;
@@ -99,10 +141,12 @@
 				BEF52D8FE927817A9988A134 /* DashboardViews.swift */,
 				15AF6F5A287BB8469F7D96CA /* DebtDetailView.swift */,
 				4BD421CD56CFDBE13A64FC3C /* InsightViews.swift */,
+				E41D2E385A26AFFB5ADCC05A /* LockView.swift */,
 				E9E238D06377AA652FAAD66C /* OnboardingViews.swift */,
 				706D636C5CE21DE212669143 /* PayoffPlanView.swift */,
 				32D72194984DDE87946B1840 /* PlanningViews.swift */,
 				119896BE080BF7614B52C10C /* ProfileViews.swift */,
+				30DA9AE7EB564C8EDB6FCE7F /* PurchaseSimulatorView.swift */,
 				2F8D8594E3000C2F0048B367 /* RegisterView.swift */,
 				AA068E5AE465CBD2E0B0C3A5 /* StatementImportView.swift */,
 			);
@@ -121,6 +165,7 @@
 			isa = PBXGroup;
 			children = (
 				1C7F2B5FC7D30924D99EB4FA /* NoVerdinho.app */,
+				3DFE132C14B186E2F18E1B9F /* NoVerdinhoTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -146,6 +191,24 @@
 			productReference = 1C7F2B5FC7D30924D99EB4FA /* NoVerdinho.app */;
 			productType = "com.apple.product-type.application";
 		};
+		F083F6EA9953B900EDB71D7B /* NoVerdinhoTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C44B42C42A720E1A9D253E78 /* Build configuration list for PBXNativeTarget "NoVerdinhoTests" */;
+			buildPhases = (
+				1EC8AFB234D5799B1492E9D6 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				6B74494781F8D396A4A3BDBA /* PBXTargetDependency */,
+			);
+			name = NoVerdinhoTests;
+			packageProductDependencies = (
+			);
+			productName = NoVerdinhoTests;
+			productReference = 3DFE132C14B186E2F18E1B9F /* NoVerdinhoTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -156,6 +219,11 @@
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
 					8460C0AC98ED751140C71F67 = {
+						DevelopmentTeam = N8VSB7DMCQ;
+						ProvisioningStyle = Automatic;
+					};
+					F083F6EA9953B900EDB71D7B = {
+						DevelopmentTeam = N8VSB7DMCQ;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -175,6 +243,7 @@
 			projectRoot = "";
 			targets = (
 				8460C0AC98ED751140C71F67 /* NoVerdinho */,
+				F083F6EA9953B900EDB71D7B /* NoVerdinhoTests */,
 			);
 		};
 /* End PBXProject section */
@@ -185,12 +254,23 @@
 			buildActionMask = 2147483647;
 			files = (
 				97F76820848918D14ECC3F2D /* Assets.xcassets in Resources */,
+				EB3490BD89930DD0496D43B5 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		1EC8AFB234D5799B1492E9D6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DBB894396FFE5302836248D2 /* PayoffSimulatorTests.swift in Sources */,
+				D603E77AE56DA1B49EC750EF /* PurchaseSimulatorTests.swift in Sources */,
+				42A72180F3065F9F2F7B3460 /* StatementParserTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		308010DF02D906B3C8C7D05F /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -200,12 +280,16 @@
 				21D89398904C25AA4FEDDB37 /* DashboardViews.swift in Sources */,
 				53513FC6B8DB5C1889B9E3F5 /* DebtDetailView.swift in Sources */,
 				E7C27A964F32C592E039809C /* InsightViews.swift in Sources */,
+				8A0F5E9533D0CB739145DFA0 /* LockView.swift in Sources */,
 				6090813F0B8E42DD12CE0290 /* Models.swift in Sources */,
 				2A3759B253203DDCC3782D56 /* NoVerdinhoApp.swift in Sources */,
 				5B70E9C15F6ED839DEF48304 /* OnboardingViews.swift in Sources */,
 				49A7020F4B9970E134C95899 /* PayoffPlanView.swift in Sources */,
+				123678D5F70E0D802716BECB /* PayoffSimulator.swift in Sources */,
 				4927314DD5AD73E2A1DFF627 /* PlanningViews.swift in Sources */,
 				6ED67FF26B5F91924EDB67D5 /* ProfileViews.swift in Sources */,
+				1FF12520EED50C5325B31629 /* PurchaseSimulator.swift in Sources */,
+				92599ED96AAF49F676D756FC /* PurchaseSimulatorView.swift in Sources */,
 				51EAA424E6144FCB522E87C4 /* RegisterView.swift in Sources */,
 				5892EBB27E6D17BCCD27064A /* StatementImportView.swift in Sources */,
 				FDABC22EB9A88418877AD021 /* StatementParser.swift in Sources */,
@@ -215,19 +299,26 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		6B74494781F8D396A4A3BDBA /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8460C0AC98ED751140C71F67 /* NoVerdinho */;
+			targetProxy = E79CD08C3CA13C989F3485D0 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
 		0198B80F054EE24A01245FA8 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = M3659PYFLX;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1";
 			};
 			name = Debug;
 		};
@@ -280,6 +371,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Usamos o Face ID para proteger o acesso às suas finanças.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
@@ -291,6 +383,22 @@
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
+				configs = "[\"debug\": [\"ENABLE_TESTABILITY\": true]]";
+			};
+			name = Release;
+		};
+		160BE317330395729EEB1D3A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NoVerdinho.app/NoVerdinho";
 			};
 			name = Release;
 		};
@@ -349,6 +457,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "Usamos o Face ID para proteger o acesso às suas finanças.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
@@ -361,6 +470,22 @@
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
+				configs = "[\"debug\": [\"ENABLE_TESTABILITY\": true]]";
+			};
+			name = Debug;
+		};
+		47F9D18E35A529A445515E8D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NoVerdinho.app/NoVerdinho";
 			};
 			name = Debug;
 		};
@@ -369,19 +494,27 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = M3659PYFLX;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1";
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		C44B42C42A720E1A9D253E78 /* Build configuration list for PBXNativeTarget "NoVerdinhoTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				47F9D18E35A529A445515E8D /* Debug */,
+				160BE317330395729EEB1D3A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		C6D89A548555F14314BD1C1A /* Build configuration list for PBXNativeTarget "NoVerdinho" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

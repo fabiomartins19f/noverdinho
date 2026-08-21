@@ -20,6 +20,13 @@ targets:
     platform: iOS
     sources:
       - path: NoVerdinho
+  NoVerdinhoTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests/NoVerdinhoTests
+    dependencies:
+      - target: NoVerdinho
 settings:
   base:
     PRODUCT_BUNDLE_IDENTIFIER: br.com.noverdinho.ios
@@ -27,8 +34,21 @@ settings:
     GENERATE_INFOPLIST_FILE: YES
     ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+    INFOPLIST_KEY_NSFaceIDUsageDescription: "Usamos o Face ID para proteger o acesso às suas finanças."
     CODE_SIGN_STYLE: Automatic
     DEVELOPMENT_TEAM: N8VSB7DMCQ
-  scheme:
-    name: NoVerdinho
-    testTargets: []
+    configs:
+      debug:
+        ENABLE_TESTABILITY: YES
+schemes:
+  NoVerdinho:
+    build:
+      targets:
+        NoVerdinho: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      gatherCoverageData: false
+      targets:
+        - NoVerdinhoTests
