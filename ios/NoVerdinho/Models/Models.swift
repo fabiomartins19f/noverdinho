@@ -149,7 +149,7 @@ struct UpcomingPayment: Identifiable {
             switch self {
             case .bill: "doc.text.fill"
             case .invoice: "creditcard.fill"
-            case .installment: "calendar.fill"
+            case .installment: "calendar"
             }
         }
     }
@@ -330,6 +330,7 @@ final class AppState: ObservableObject {
         save()
         NotificationScheduler.syncReminders(for: self)
     } }
+    @Published var balanceHidden = false { didSet { save() } }
 
     @Published var showAddSheet = false
     @Published var addPreset: AddSheetType?
@@ -541,11 +542,13 @@ final class AppState: ObservableObject {
         var diagnosticDone: Bool
         var levelScore: Int
         var notificationsEnabled: Bool
+        var balanceHidden: Bool
 
         init(onboarded: Bool, registered: Bool, userName: String, userEmail: String,
              balance: Double, transactions: [Transaction], debts: [Debt],
              cards: [CreditCard], goals: [Goal], budget: [BudgetCategory],
-             diagnosticDone: Bool, levelScore: Int, notificationsEnabled: Bool) {
+             diagnosticDone: Bool, levelScore: Int, notificationsEnabled: Bool,
+             balanceHidden: Bool) {
             self.onboarded = onboarded
             self.registered = registered
             self.userName = userName
@@ -559,6 +562,7 @@ final class AppState: ObservableObject {
             self.diagnosticDone = diagnosticDone
             self.levelScore = levelScore
             self.notificationsEnabled = notificationsEnabled
+            self.balanceHidden = balanceHidden
         }
 
         init(from decoder: Decoder) throws {
@@ -576,6 +580,7 @@ final class AppState: ObservableObject {
             diagnosticDone = try c.decodeIfPresent(Bool.self, forKey: .diagnosticDone) ?? false
             levelScore = try c.decodeIfPresent(Int.self, forKey: .levelScore) ?? 72
             notificationsEnabled = try c.decodeIfPresent(Bool.self, forKey: .notificationsEnabled) ?? false
+            balanceHidden = try c.decodeIfPresent(Bool.self, forKey: .balanceHidden) ?? false
         }
     }
 
@@ -595,6 +600,7 @@ final class AppState: ObservableObject {
         goals = state.goals
         budget = state.budget.isEmpty ? Self.defaultBudget : state.budget
         notificationsEnabled = state.notificationsEnabled
+        balanceHidden = state.balanceHidden
     }
 
     private func save() {
@@ -611,7 +617,8 @@ final class AppState: ObservableObject {
             budget: budget,
             diagnosticDone: diagnosticDone,
             levelScore: levelScore,
-            notificationsEnabled: notificationsEnabled
+            notificationsEnabled: notificationsEnabled,
+            balanceHidden: balanceHidden
         )
         if let data = try? JSONEncoder().encode(state) {
             UserDefaults.standard.set(data, forKey: Self.storageKey)

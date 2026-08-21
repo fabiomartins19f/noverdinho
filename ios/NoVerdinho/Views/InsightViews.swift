@@ -37,7 +37,7 @@ struct CanISpendView: View {
                         SectionTitle("Como calculamos")
                         VStack(spacing: 8) {
                             IndicatorRow(icon: "arrow.down.left.circle.fill", title: "Saldo disponível",
-                                         value: Money.format(app.balance), color: Theme.green)
+                                         value: app.balanceHidden ? "R$ ••••••" : Money.format(app.balance), color: Theme.green)
                             IndicatorRow(icon: "shippingbox.fill", title: "Compromissos deste mês",
                                          value: Money.format(monthlyCommitments), color: Theme.warning)
                             IndicatorRow(icon: "banknote.fill", title: "Dívidas em aberto",

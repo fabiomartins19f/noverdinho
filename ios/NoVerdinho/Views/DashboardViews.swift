@@ -102,7 +102,12 @@ struct DashboardView: View {
             NavigationLink {
                 TransactionsView()
             } label: {
-                BalanceCard(balance: app.balance, weekDelta: weekDelta)
+                BalanceCard(
+                    balance: app.balance,
+                    weekDelta: weekDelta,
+                    isBalanceHidden: app.balanceHidden,
+                    onToggleVisibility: { app.balanceHidden.toggle() }
+                )
             }
             .buttonStyle(.plain)
 

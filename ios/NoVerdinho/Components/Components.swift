@@ -327,18 +327,34 @@ struct NotificationButton: View {
 struct BalanceCard: View {
     let balance: Double
     let weekDelta: Double
+    var isBalanceHidden = false
+    var onToggleVisibility: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            VStack(alignment: .leading, spacing: 6) {
+            HStack {
                 Text("Saldo disponível")
                     .font(Fonts.caption())
                     .foregroundStyle(Theme.textSecondary)
-                Text(Money.format(balance))
-                    .font(Fonts.money(40))
-                    .foregroundStyle(Theme.text)
-                    .contentTransition(.numericText())
+                Spacer()
+                if let onToggleVisibility {
+                    Button(action: onToggleVisibility) {
+                        Image(systemName: isBalanceHidden ? "eye.slash.fill" : "eye.fill")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Theme.textSecondary)
+                            .frame(width: 30, height: 30)
+                            .background(Theme.surfaceAlt)
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                }
             }
+
+            Text(isBalanceHidden ? "R$ ••••••" : Money.format(balance))
+                .font(Fonts.money(40))
+                .foregroundStyle(Theme.text)
+                .contentTransition(.opacity)
+                .animation(.easeInOut(duration: 0.18), value: isBalanceHidden)
 
             HStack(spacing: 6) {
                 Image(systemName: weekDelta >= 0 ? "arrow.down.left.circle.fill" : "arrow.up.right.circle.fill")
