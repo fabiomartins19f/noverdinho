@@ -61,6 +61,17 @@ enum StatementParser {
         "crédito", "credito", "estorno",
     ]
 
+    // MARK: Regexes compiladas (cache — compilar a cada linha é desperdício)
+
+    private static let dateRegex = try! NSRegularExpression(pattern: datePattern)
+    private static let moneyWithSymbolRegex = try! NSRegularExpression(
+        pattern: moneyWithSymbolPattern, options: [.caseInsensitive])
+    private static let moneyAtEndRegex = try! NSRegularExpression(pattern: moneyAtEndPattern)
+    private static let leadingDateRegex = try! NSRegularExpression(pattern: leadingDatePattern)
+    private static let leadingMonthRegex = try! NSRegularExpression(
+        pattern: leadingMonthPattern, options: [.caseInsensitive])
+    private static let trailingMoneyRegex = try! NSRegularExpression(pattern: trailingMoneyPattern)
+
     // MARK: API pública
 
     /// Reconhece as linhas de um extrato a partir do texto bruto.
@@ -136,9 +147,7 @@ enum StatementParser {
     /// Valor em R$ presente na linha, nesse preferência:
     /// 1. valor com símbolo "R$"; 2. número isolado no fim da linha.
     private static func extractAmount(from line: String) -> Double? {
-        let patterns = [moneyWithSymbolPattern, moneyAtEndPattern]
-        for pattern in patterns {
-            guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { continue }
+        for regex in [moneyWithSymbolRegex, moneyAtEndRegex] {
             let range = NSRange(line.startIndex..., in: line)
             guard let match = regex.firstMatch(in: line, range: range),
                   match.range.length <= 40 else { continue }
@@ -156,9 +165,8 @@ enum StatementParser {
 
     /// Data da compra; nil quando o extrato não traz data na linha.
     private static func extractDate(from line: String) -> Date? {
-        guard let regex = try? NSRegularExpression(pattern: datePattern) else { return nil }
         let range = NSRange(line.startIndex..., in: line)
-        guard let match = regex.firstMatch(in: line, range: range) else { return nil }
+        guard let match = dateRegex.firstMatch(in: line, range: range) else { return nil }
 
         let monthNames = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN",
                           "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"]
@@ -205,26 +213,23 @@ enum StatementParser {
         var text = line
 
         // Remove o prefixo "DD/MM" ou "DD MON".
-        if let regex = try? NSRegularExpression(pattern: leadingDatePattern),
-           let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
-           let range = Range(match.range, in: text) {
-            text.removeSubrange(range)
-        } else if let regex = try? NSRegularExpression(pattern: leadingMonthPattern, options: [.caseInsensitive]),
-                  let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
-                  let range = Range(match.range, in: text) {
-            text.removeSubrange(range)
+        if !removeIfMatched(leadingDateRegex, from: &text) {
+            _ = removeIfMatched(leadingMonthRegex, from: &text)
         }
 
         // Remove o valor em R$ do final da linha.
-        if let regex = try? NSRegularExpression(pattern: trailingMoneyPattern),
-           let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
-           let range = Range(match.range, in: text) {
-            text.removeSubrange(range)
-        }
+        _ = removeIfMatched(trailingMoneyRegex, from: &text)
 
         // Limpa espaços múltiplos.
         let cleaned = text.replacingOccurrences(of: #"\s{2,}"#, with: " ", options: .regularExpression)
         return cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func removeIfMatched(_ regex: NSRegularExpression, from text: inout String) -> Bool {
+        guard let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+              let range = Range(match.range, in: text) else { return false }
+        text.removeSubrange(range)
+        return true
     }
 
     // MARK: Helper de captura

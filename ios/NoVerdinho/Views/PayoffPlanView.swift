@@ -28,37 +28,18 @@ struct PayoffPlanView: View {
     }
 
     /// Simula mês a mês o pagamento de `payment` na ordem dada, capitalizando
-    /// juros mensais. Determinística — sem matemática instável.
-    private func simulate(payment: Double) -> (months: Int, interest: Double) {
-        guard payment > 0 else { return (0, 0) }
-        var balances = orderedDebts.map { $0.remainingBalance }
-        var interest = 0.0
-        var months = 0
-        while balances.contains(where: { $0 > 0.01 }) && months < 720 {
-            months += 1
-            var pool = payment
-            for i in balances.indices where balances[i] > 0.01 {
-                let monthlyRate = orderedDebts[i].interestRate / 100 / 12
-                let accrued = balances[i] * monthlyRate
-                interest += accrued
-                balances[i] += accrued
-                if pool > 0.01 {
-                    let paid = min(balances[i], pool)
-                    balances[i] -= paid
-                    pool -= paid
-                }
-            }
-        }
-        return (months, interest)
+    /// juros mensais. Delegada ao simulador puro (testável).
+    private func simulate(payment: Double) -> PayoffSimulator.Outcome {
+        PayoffSimulator.simulate(debts: orderedDebts, payment: payment)
     }
 
-    private var plan: (months: Int, interest: Double)? {
+    private var plan: PayoffSimulator.Outcome? {
         let budget = Money.parse(budgetText) ?? 0
         guard budget > 0, !activeDebts.isEmpty else { return nil }
         return simulate(payment: budget)
     }
 
-    private var minimumPlan: (months: Int, interest: Double)? {
+    private var minimumPlan: PayoffSimulator.Outcome? {
         guard !activeDebts.isEmpty else { return nil }
         return simulate(payment: defaultBudget)
     }
@@ -114,22 +95,36 @@ struct PayoffPlanView: View {
                     AppCard {
                         VStack(alignment: .leading, spacing: 14) {
                             SectionTitle("Resultado")
-                            VStack(spacing: 10) {
-                                IndicatorRow(icon: "calendar", title: "Prazo estimado",
-                                             value: plan.months > 1 ? "\(plan.months) meses" : "1 mês",
-                                             color: Theme.green)
-                                IndicatorRow(icon: "percent", title: "Juros estimados",
-                                             value: Money.format(plan.interest), color: Theme.warning)
-                                if let minimum = minimumPlan, minimum.interest > plan.interest {
-                                    IndicatorRow(icon: "sparkles", title: "Economia vs. parcelas atuais",
-                                                 value: Money.format(minimum.interest - plan.interest),
-                                                 color: Theme.greenBright)
+
+                            if plan.neverPaysOff {
+                                HStack(alignment: .top, spacing: 10) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .font(.system(size: 18))
+                                    Text("Com esse aporte, os juros crescem mais rápido que o pagamento — a dívida nunca se quita. Aumente o valor mensal para sair da bola de neve.")
+                                        .font(Fonts.caption(12))
+                                        .fixedSize(horizontal: false, vertical: true)
                                 }
-                            }
-                            if plan.months > 0 {
-                                Text("Quitação projetada para \(Calendar.current.date(byAdding: .month, value: plan.months, to: .now)?.formatted(.dateTime.month().year()) ?? "—")")
-                                    .font(Fonts.caption(12))
-                                    .foregroundStyle(Theme.textSecondary)
+                                .foregroundStyle(Theme.danger)
+                                IndicatorRow(icon: "percent", title: "Juros só no primeiro mês",
+                                             value: Money.format(plan.interest), color: Theme.danger)
+                            } else {
+                                VStack(spacing: 10) {
+                                    IndicatorRow(icon: "calendar", title: "Prazo estimado",
+                                                 value: plan.months > 1 ? "\(plan.months) meses" : "1 mês",
+                                                 color: Theme.green)
+                                    IndicatorRow(icon: "percent", title: "Juros estimados",
+                                                 value: Money.format(plan.interest), color: Theme.warning)
+                                    if let minimum = minimumPlan, !minimum.neverPaysOff, minimum.interest > plan.interest {
+                                        IndicatorRow(icon: "sparkles", title: "Economia vs. parcelas atuais",
+                                                     value: Money.format(minimum.interest - plan.interest),
+                                                     color: Theme.greenBright)
+                                    }
+                                }
+                                if plan.months > 0 {
+                                    Text("Quitação projetada para \(Calendar.current.date(byAdding: .month, value: plan.months, to: .now)?.formatted(.dateTime.month().year()) ?? "—")")
+                                        .font(Fonts.caption(12))
+                                        .foregroundStyle(Theme.textSecondary)
+                                }
                             }
                         }
                     }
