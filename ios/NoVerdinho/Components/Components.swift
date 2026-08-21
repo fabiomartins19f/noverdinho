@@ -11,6 +11,10 @@ enum Haptics {
     static func success() {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
     }
+
+    static func error() {
+        UINotificationFeedbackGenerator().notificationOccurred(.error)
+    }
 }
 
 // MARK: - Cartão padrão
@@ -225,6 +229,9 @@ struct ProgressBar: View {
             }
         }
         .frame(height: height)
+        .accessibilityElement()
+        .accessibilityLabel("Progresso")
+        .accessibilityValue("\(Int((max(0, min(1, progress)) * 100).rounded())) por cento")
     }
 }
 
@@ -242,6 +249,7 @@ struct Badge: View {
             .padding(.vertical, 4)
             .background(Theme.soft(color))
             .clipShape(Capsule())
+            .accessibilityAddTraits(.isStaticText)
     }
 }
 
@@ -269,6 +277,7 @@ struct IndicatorRow: View {
                 .font(Fonts.captionStrong())
                 .foregroundStyle(color)
         }
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -347,6 +356,7 @@ struct BalanceCard: View {
                             .clipShape(Circle())
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(isBalanceHidden ? "Mostrar saldo" : "Ocultar saldo")
                 }
             }
 
@@ -385,6 +395,10 @@ struct BalanceCard: View {
                 .stroke(Theme.border, lineWidth: 1)
         )
         .shadow(color: Theme.green.opacity(0.06), radius: 24, y: 8)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(isBalanceHidden
+            ? "Saldo disponível, oculto"
+            : "Saldo disponível, \(Money.format(balance))")
     }
 }
 
@@ -474,6 +488,9 @@ struct VerdinhoScore: View {
         }
         .frame(width: 150, height: 150)
         .shadow(color: Theme.green.opacity(0.12), radius: 18, y: 6)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Seu Verdinho, nível de saúde financeira")
+        .accessibilityValue("\(min(max(score, 0), 100)) de 100")
     }
 }
 

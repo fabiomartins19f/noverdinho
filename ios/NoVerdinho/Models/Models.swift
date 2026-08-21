@@ -438,6 +438,10 @@ final class AppState: ObservableObject {
         NotificationScheduler.syncReminders(for: self)
     } }
     @Published var balanceHidden = false { didSet { save() } }
+    /// Trava opcional: exige Face ID/senha do aparelho ao abrir o app.
+    @Published var appLockEnabled = false { didSet { save() } }
+    /// Estado de sessão (não persistido): true bloqueia a interface atrás da trava.
+    @Published var isLocked = false
 
     @Published var showAddSheet = false
     @Published var addPreset: AddSheetType?
@@ -450,6 +454,9 @@ final class AppState: ObservableObject {
         goals = Self.defaultGoals
         budget = Self.defaultBudget
         load()
+        if appLockEnabled && registered {
+            isLocked = true
+        }
     }
 
     // MARK: Dados de demonstração
@@ -512,6 +519,19 @@ final class AppState: ObservableObject {
     // MARK: Dados derivados
 
     var totalDebt: Double { debts.reduce(0) { $0 + $1.remainingBalance } }
+
+    /// Receitas do mês corrente (base do comprometimento de renda).
+    var monthIncome: Double {
+        transactions
+            .filter { $0.kind == .income && Calendar.current.isDate($0.date, equalTo: .now, toGranularity: .month) }
+            .reduce(0) { $0 + $1.amount }
+    }
+
+    /// Parcelas de dívidas ativas + faturas dos cartões.
+    var monthlyCommitments: Double {
+        debts.filter { $0.status != .paidOff }.reduce(0) { $0 + $1.installment }
+            + cards.reduce(0) { $0 + $1.currentInvoice }
+    }
 
     /// Registra um pagamento em uma dívida: reduz saldo, avança parcelas e
     /// marca como quitada quando o saldo zera.
@@ -651,12 +671,13 @@ final class AppState: ObservableObject {
         var levelScore: Int
         var notificationsEnabled: Bool
         var balanceHidden: Bool
+        var appLockEnabled: Bool
 
         init(onboarded: Bool, registered: Bool, userName: String, userEmail: String,
              balance: Double, transactions: [Transaction], debts: [Debt],
              cards: [CreditCard], goals: [Goal], budget: [BudgetCategory],
              diagnosticDone: Bool, levelScore: Int, notificationsEnabled: Bool,
-             balanceHidden: Bool) {
+             balanceHidden: Bool, appLockEnabled: Bool) {
             self.onboarded = onboarded
             self.registered = registered
             self.userName = userName
@@ -671,6 +692,7 @@ final class AppState: ObservableObject {
             self.levelScore = levelScore
             self.notificationsEnabled = notificationsEnabled
             self.balanceHidden = balanceHidden
+            self.appLockEnabled = appLockEnabled
         }
 
         init(from decoder: Decoder) throws {
@@ -689,6 +711,7 @@ final class AppState: ObservableObject {
             levelScore = try c.decodeIfPresent(Int.self, forKey: .levelScore) ?? 72
             notificationsEnabled = try c.decodeIfPresent(Bool.self, forKey: .notificationsEnabled) ?? false
             balanceHidden = try c.decodeIfPresent(Bool.self, forKey: .balanceHidden) ?? false
+            appLockEnabled = try c.decodeIfPresent(Bool.self, forKey: .appLockEnabled) ?? false
         }
     }
 
@@ -709,6 +732,7 @@ final class AppState: ObservableObject {
         budget = state.budget.isEmpty ? Self.defaultBudget : state.budget
         notificationsEnabled = state.notificationsEnabled
         balanceHidden = state.balanceHidden
+        appLockEnabled = state.appLockEnabled
     }
 
     private func save() {
@@ -726,7 +750,8 @@ final class AppState: ObservableObject {
             diagnosticDone: diagnosticDone,
             levelScore: levelScore,
             notificationsEnabled: notificationsEnabled,
-            balanceHidden: balanceHidden
+            balanceHidden: balanceHidden,
+            appLockEnabled: appLockEnabled
         )
         if let data = try? JSONEncoder().encode(state) {
             UserDefaults.standard.set(data, forKey: Self.storageKey)
@@ -742,6 +767,9 @@ final class AppState: ObservableObject {
 
     func deleteAllData() {
         notificationsEnabled = false
+        balanceHidden = false
+        appLockEnabled = false
+        isLocked = false
         UserDefaults.standard.removeObject(forKey: Self.storageKey)
         onboarded = false
         registered = false
