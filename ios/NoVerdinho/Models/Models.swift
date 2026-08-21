@@ -55,7 +55,7 @@ enum DebtPriority: String, Codable {
 }
 
 struct Debt: Identifiable, Codable {
-    let id = UUID()
+    var id: UUID = UUID()
     let type: DebtType
     let creditor: String
     let originalAmount: Double
@@ -70,12 +70,37 @@ struct Debt: Identifiable, Codable {
     let status: DebtStatus
 
     var progress: Double { originalAmount > 0 ? paidAmount / originalAmount : 0 }
+
+    enum CodingKeys: String, CodingKey { case id, type, creditor, originalAmount, paidAmount,
+                                            remainingBalance, interestRate, installment,
+                                            installmentCount, paidInstallments, dueDate,
+                                            priority, status }
+}
+
+extension Debt {
+    /// Compatibilidade: dados antigos não tinham "id" persistido.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        type = try c.decode(DebtType.self, forKey: .type)
+        creditor = try c.decode(String.self, forKey: .creditor)
+        originalAmount = try c.decode(Double.self, forKey: .originalAmount)
+        paidAmount = try c.decode(Double.self, forKey: .paidAmount)
+        remainingBalance = try c.decode(Double.self, forKey: .remainingBalance)
+        interestRate = try c.decode(Double.self, forKey: .interestRate)
+        installment = try c.decode(Double.self, forKey: .installment)
+        installmentCount = try c.decode(Int.self, forKey: .installmentCount)
+        paidInstallments = try c.decode(Int.self, forKey: .paidInstallments)
+        dueDate = try c.decode(Date.self, forKey: .dueDate)
+        priority = try c.decode(DebtPriority.self, forKey: .priority)
+        status = try c.decode(DebtStatus.self, forKey: .status)
+    }
 }
 
 // MARK: - Cartão de crédito
 
 struct CreditCard: Identifiable, Codable {
-    let id = UUID()
+    var id: UUID = UUID()
     let name: String
     let institution: String
     let lastDigits: String
@@ -87,6 +112,25 @@ struct CreditCard: Identifiable, Codable {
 
     var available: Double { limit - used }
     var utilization: Double { limit > 0 ? used / limit : 0 }
+
+    enum CodingKeys: String, CodingKey { case id, name, institution, lastDigits, limit, used,
+                                            currentInvoice, dueDay, statementItems }
+}
+
+extension CreditCard {
+    /// Compatibilidade: dados antigos não tinham "id" persistido.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        name = try c.decode(String.self, forKey: .name)
+        institution = try c.decode(String.self, forKey: .institution)
+        lastDigits = try c.decode(String.self, forKey: .lastDigits)
+        limit = try c.decode(Double.self, forKey: .limit)
+        used = try c.decode(Double.self, forKey: .used)
+        currentInvoice = try c.decode(Double.self, forKey: .currentInvoice)
+        dueDay = try c.decode(Int.self, forKey: .dueDay)
+        statementItems = try c.decodeIfPresent([CardPurchase].self, forKey: .statementItems) ?? []
+    }
 
     var brandColor: Color {
         switch name.lowercased() {
@@ -111,25 +155,57 @@ struct CreditCard: Identifiable, Codable {
 }
 
 struct CardPurchase: Identifiable, Codable {
-    let id = UUID()
+    var id: UUID = UUID()
     let name: String
     let amount: Double
     let installments: Int
     let paidInstallments: Int
     let date: Date
     var fromStatement: Bool = false
+
+    enum CodingKeys: String, CodingKey { case id, name, amount, installments, paidInstallments,
+                                            date, fromStatement }
+}
+
+extension CardPurchase {
+    /// Compatibilidade: dados antigos não tinham "id" persistido.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        name = try c.decode(String.self, forKey: .name)
+        amount = try c.decode(Double.self, forKey: .amount)
+        installments = try c.decode(Int.self, forKey: .installments)
+        paidInstallments = try c.decode(Int.self, forKey: .paidInstallments)
+        date = try c.decode(Date.self, forKey: .date)
+        fromStatement = try c.decodeIfPresent(Bool.self, forKey: .fromStatement) ?? false
+    }
 }
 
 // MARK: - Transação
 
 struct Transaction: Identifiable, Codable {
     enum Kind: String, Codable { case income, expense, transfer }
-    let id = UUID()
+    var id: UUID = UUID()
     let kind: Kind
     let name: String
     let category: String
     let amount: Double
     let date: Date
+
+    enum CodingKeys: String, CodingKey { case id, kind, name, category, amount, date }
+}
+
+extension Transaction {
+    /// Compatibilidade: dados antigos não tinham "id" persistido.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        kind = try c.decode(Kind.self, forKey: .kind)
+        name = try c.decode(String.self, forKey: .name)
+        category = try c.decode(String.self, forKey: .category)
+        amount = try c.decode(Double.self, forKey: .amount)
+        date = try c.decode(Date.self, forKey: .date)
+    }
 }
 
 // MARK: - Compromisso futuro
@@ -163,7 +239,7 @@ struct UpcomingPayment: Identifiable {
 // MARK: - Orçamento
 
 struct BudgetCategory: Identifiable, Codable {
-    let id = UUID()
+    var id: UUID = UUID()
     let name: String
     let icon: String
     let colorHex: String
@@ -172,6 +248,21 @@ struct BudgetCategory: Identifiable, Codable {
 
     var color: Color { Color(hex: colorHex) }
     var progress: Double { limit > 0 ? spent / limit : 0 }
+
+    enum CodingKeys: String, CodingKey { case id, name, icon, colorHex, limit, spent }
+}
+
+extension BudgetCategory {
+    /// Compatibilidade: dados antigos não tinham "id" persistido.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        name = try c.decode(String.self, forKey: .name)
+        icon = try c.decode(String.self, forKey: .icon)
+        colorHex = try c.decode(String.self, forKey: .colorHex)
+        limit = try c.decode(Double.self, forKey: .limit)
+        spent = try c.decode(Double.self, forKey: .spent)
+    }
 }
 
 // MARK: - Meta
@@ -199,7 +290,7 @@ struct Goal: Identifiable, Codable {
         }
     }
 
-    let id = UUID()
+    var id: UUID = UUID()
     let kind: Kind
     let title: String
     let emoji: String
@@ -212,6 +303,22 @@ struct Goal: Identifiable, Codable {
     var projectedMonths: Int {
         guard monthlyContribution > 0 else { return 0 }
         return Int(ceil((target - saved) / monthlyContribution))
+    }
+
+    enum CodingKeys: String, CodingKey { case id, kind, title, emoji, target, saved, monthlyContribution }
+}
+
+extension Goal {
+    /// Compatibilidade: dados antigos não tinham "id" persistido.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        kind = try c.decode(Kind.self, forKey: .kind)
+        title = try c.decode(String.self, forKey: .title)
+        emoji = try c.decode(String.self, forKey: .emoji)
+        target = try c.decode(Double.self, forKey: .target)
+        saved = try c.decode(Double.self, forKey: .saved)
+        monthlyContribution = try c.decode(Double.self, forKey: .monthlyContribution)
     }
 }
 
@@ -414,6 +521,7 @@ final class AppState: ObservableObject {
         let newBalance = max(debt.originalAmount - newPaid, 0)
         let isFull = newBalance <= 0.01
         let updated = Debt(
+            id: debt.id,
             type: debt.type, creditor: debt.creditor,
             originalAmount: debt.originalAmount, paidAmount: newPaid,
             remainingBalance: isFull ? 0 : newBalance,

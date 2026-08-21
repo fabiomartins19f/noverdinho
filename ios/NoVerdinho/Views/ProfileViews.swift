@@ -651,6 +651,7 @@ struct EditTransactionSheet: View {
         app.balance += kind == .income ? value : -value
         if let index = app.transactions.firstIndex(where: { $0.id == transaction.id }) {
             app.transactions[index] = Transaction(
+                id: transaction.id,
                 kind: kind,
                 name: name.trimmingCharacters(in: .whitespaces),
                 category: category,
