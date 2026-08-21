@@ -23,7 +23,7 @@ struct DashboardView: View {
         .sheet(item: $editingTransaction) { transaction in
             EditTransactionSheet(transaction: transaction)
                 .environmentObject(app)
-                .presentationDetents([.height(380)])
+                .presentationDetents([.height(520)])
         }
     }
 
@@ -99,9 +99,12 @@ struct DashboardView: View {
         VStack(alignment: .leading, spacing: 20) {
             header
 
-            BalanceCard(balance: app.balance, weekDelta: weekDelta, onSeeTransactions: {
-                app.selectedTab = .home
-            })
+            NavigationLink {
+                TransactionsView()
+            } label: {
+                BalanceCard(balance: app.balance, weekDelta: weekDelta)
+            }
+            .buttonStyle(.plain)
 
             HStack(spacing: 10) {
                 SummaryCard(icon: "arrow.down.left.circle.fill", title: "Receitas",
@@ -128,10 +131,10 @@ struct DashboardView: View {
                     title: action.title,
                     message: action.message,
                     actionTitle: "Ver plano",
-                    accent: Theme.greenBright
-                ) {
-                    app.selectedTab = .debts
-                }
+                    onAction: {
+                        app.selectedTab = .debts
+                    },
+                    accent: Theme.greenBright)
             }
 
             if commitmentsNext15Days > 0 {
@@ -143,9 +146,12 @@ struct DashboardView: View {
                 }
             }
 
-            CanISpendCard {
-                app.selectedTab = .planning
+            NavigationLink {
+                CanISpendView()
+            } label: {
+                CanISpendCard()
             }
+            .buttonStyle(.plain)
 
             upcomingSection
 
@@ -194,8 +200,8 @@ struct DashboardView: View {
                             Text("neste mês")
                                 .font(Fonts.caption())
                                 .foregroundStyle(Theme.textSecondary)
-                            Button {
-                                app.selectedTab = .planning
+                            NavigationLink {
+                                ReportsView()
                             } label: {
                                 HStack(spacing: 4) {
                                     Text("Ver minha evolução")
@@ -416,7 +422,7 @@ struct DebtsView: View {
 
                 ForEach(filteredDebts) { debt in
                     NavigationLink {
-                        DebtDetailView(debt: debt)
+                        DebtDetailView(debtID: debt.id)
                     } label: {
                         DebtCardView(debt: debt)
                     }
@@ -553,7 +559,7 @@ struct TransactionsView: View {
         .sheet(item: $editingTransaction) { transaction in
             EditTransactionSheet(transaction: transaction)
                 .environmentObject(app)
-                .presentationDetents([.height(380)])
+                .presentationDetents([.height(520)])
         }
     }
 }

@@ -327,7 +327,6 @@ struct NotificationButton: View {
 struct BalanceCard: View {
     let balance: Double
     let weekDelta: Double
-    let onSeeTransactions: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -351,16 +350,13 @@ struct BalanceCard: View {
 
             Divider().overlay(Theme.border)
 
-            Button(action: onSeeTransactions) {
-                HStack(spacing: 4) {
-                    Text("Ver movimentações")
-                        .font(Fonts.captionStrong())
-                    Image(systemName: "arrow.right")
-                        .font(.system(size: 11, weight: .bold))
-                }
-                .foregroundStyle(Theme.green)
+            HStack(spacing: 4) {
+                Text("Ver movimentações")
+                    .font(Fonts.captionStrong())
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 11, weight: .bold))
             }
-            .buttonStyle(.plain)
+            .foregroundStyle(Theme.green)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(20)
@@ -600,8 +596,6 @@ struct UpcomingPaymentRow: View {
 // MARK: - Card "Posso gastar?"
 
 struct CanISpendCard: View {
-    let onAction: () -> Void
-
     var body: some View {
         HStack(spacing: 14) {
             Image(systemName: "sparkles")
@@ -619,16 +613,13 @@ struct CanISpendCard: View {
                     .foregroundStyle(Theme.textSecondary)
             }
             Spacer(minLength: 8)
-            Button(action: onAction) {
-                Text("Consultar")
-                    .font(Fonts.captionStrong())
-                    .foregroundStyle(Theme.background)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 9)
-                    .background(Theme.green)
-                    .clipShape(Capsule())
-            }
-            .buttonStyle(.plain)
+            Text("Consultar")
+                .font(Fonts.captionStrong())
+                .foregroundStyle(Theme.background)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 9)
+                .background(Theme.green)
+                .clipShape(Capsule())
         }
         .padding(16)
         .background(

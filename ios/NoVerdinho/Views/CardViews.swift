@@ -44,7 +44,7 @@ struct CardsView: View {
 
                 ForEach(app.cards) { card in
                     NavigationLink {
-                        CardDetailView(card: card)
+                        CardDetailView(cardID: card.id)
                     } label: {
                         CardVisual(card: card)
                     }
@@ -135,9 +135,28 @@ struct CardVisual: View {
 
 struct CardDetailView: View {
     @EnvironmentObject var app: AppState
-    let card: CreditCard
+    let cardID: UUID
+
+    /// Cartão vivo no estado — importações de extrato substituem o struct,
+    /// então nunca use a cópia recebida na navegação.
+    private var liveCard: CreditCard? {
+        app.cards.first { $0.id == cardID }
+    }
 
     var body: some View {
+        if let card = liveCard {
+            cardContent(card)
+        } else {
+            EmptyState(
+                icon: "creditcard.fill",
+                title: "Cartão não encontrado",
+                message: "Ele pode ter sido removido."
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func cardContent(_ card: CreditCard) -> some View {
         ScreenScroll {
             VStack(alignment: .leading, spacing: 18) {
                 AppCard {
@@ -166,6 +185,27 @@ struct CardDetailView: View {
                             .foregroundStyle(Theme.textSecondary)
                     }
                 }
+
+                NavigationLink {
+                    StatementImportView()
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "doc.text.magnifyingglass")
+                            .font(.system(size: 15, weight: .semibold))
+                        Text("Importar extrato da fatura")
+                            .font(Fonts.bodyMedium())
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(Theme.textTertiary)
+                    }
+                    .foregroundStyle(Theme.green)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 14)
+                    .background(Theme.soft(Theme.green))
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+                .buttonStyle(.plain)
 
                 if card.statementItems.isEmpty {
                     EmptyState(
@@ -214,7 +254,7 @@ struct CardDetailView: View {
                     AppCard {
                         VStack(alignment: .leading, spacing: 12) {
                             SectionTitle("Próximas faturas")
-                            ForEach(nextInvoiceItems) { row in
+                            ForEach(nextInvoiceItems(card)) { row in
                                 IndicatorRow(icon: "creditcard.fill", title: row.name,
                                              value: Money.format(row.value), color: Theme.info)
                             }
@@ -228,7 +268,7 @@ struct CardDetailView: View {
     }
 
     /// Parcelas restantes consolidadas por compra.
-    private var nextInvoiceRows: [(name: String, value: Double)] {
+    private func nextInvoiceRows(_ card: CreditCard) -> [(name: String, value: Double)] {
         card.statementItems
             .filter { $0.installments > $0.paidInstallments }
             .map { purchase in
@@ -239,8 +279,8 @@ struct CardDetailView: View {
     }
 
     /// Parcelas restantes consolidadas por compra (com id estável).
-    private var nextInvoiceItems: [NextInvoiceItem] {
-        nextInvoiceRows.enumerated().map { index, row in
+    private func nextInvoiceItems(_ card: CreditCard) -> [NextInvoiceItem] {
+        nextInvoiceRows(card).enumerated().map { index, row in
             NextInvoiceItem(id: index, name: row.name, value: row.value)
         }
     }

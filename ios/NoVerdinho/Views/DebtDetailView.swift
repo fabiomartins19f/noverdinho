@@ -4,10 +4,29 @@ import SwiftUI
 
 struct DebtDetailView: View {
     @EnvironmentObject var app: AppState
-    let debt: Debt
+    let debtID: UUID
     @State private var showPaymentSheet = false
 
+    /// Dívida viva no estado — o pagamento substitui o struct, então
+    /// nunca use a cópia recebida na navegação.
+    private var debt: Debt? {
+        app.debts.first { $0.id == debtID }
+    }
+
     var body: some View {
+        if let debt {
+            debtContent(debt)
+        } else {
+            EmptyState(
+                icon: "banknote.fill",
+                title: "Dívida não encontrada",
+                message: "Ela pode ter sido quitada ou removida."
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func debtContent(_ debt: Debt) -> some View {
         ScreenScroll {
             VStack(alignment: .leading, spacing: 18) {
                 AppCard {
