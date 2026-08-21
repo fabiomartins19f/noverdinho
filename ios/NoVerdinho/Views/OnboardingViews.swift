@@ -1,58 +1,87 @@
 import SwiftUI
 
-// MARK: - TELA 01: Onboarding (boas-vindas)
+// MARK: - TELA 01: Boas-vindas (identidade visual do logo)
 
 struct OnboardingView: View {
     @EnvironmentObject var app: AppState
+    @State private var appear = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            Spacer()
+        ZStack {
+            // Glow verde-lima atrás do logo, como no material de marca
+            RadialGradient(
+                colors: [Theme.green.opacity(0.16), .clear],
+                center: .init(x: 0.5, y: 0.32),
+                startRadius: 10,
+                endRadius: 340
+            )
+            .ignoresSafeArea()
 
-            Image("AppLogo")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 96, height: 96)
-                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                .shadow(color: Theme.green.opacity(0.3), radius: 18, y: 6)
+            VStack(spacing: 0) {
+                Spacer()
 
-            Text("NO VERDINHO")
-                .font(.system(size: 34, weight: .black, design: .rounded))
-                .foregroundStyle(Theme.greenGradient)
-                .tracking(2)
-                .padding(.top, 14)
+                Image("AppLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: 250)
+                    .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                    .shadow(color: Theme.green.opacity(0.35), radius: 34, y: 12)
+                    .scaleEffect(appear ? 1 : 0.92)
+                    .opacity(appear ? 1 : 0)
 
-            Text("Organize. Quite. Evolua.")
-                .font(Fonts.bodyMedium())
-                .foregroundStyle(Theme.textSecondary)
-                .padding(.top, 6)
+                Text("NO VERDINHO")
+                    .font(.system(size: 33, weight: .black, design: .rounded))
+                    .foregroundStyle(Theme.greenGradient)
+                    .tracking(3)
+                    .padding(.top, 26)
+                    .opacity(appear ? 1 : 0)
 
-            Spacer()
+                Text("Organize. Quite. Evolua.")
+                    .font(Fonts.bodyMedium())
+                    .foregroundStyle(Theme.textSecondary)
+                    .padding(.top, 8)
+                    .opacity(appear ? 1 : 0)
 
-            Image(systemName: "leaf.fill")
-                .font(.system(size: 64, weight: .light))
+                Spacer()
+
+                VStack(spacing: 18) {
+                    featureRow(icon: "chart.pie.fill", text: "Entenda sua situação financeira")
+                    featureRow(icon: "banknote.fill", text: "Quite suas dívidas com um plano")
+                    featureRow(icon: "leaf.fill", text: "Evolua até ficar no verdinho")
+                }
+                .padding(.horizontal, 36)
+                .opacity(appear ? 1 : 0)
+
+                PrimaryButton("Começar", icon: "leaf.fill") {
+                    withAnimation { app.onboarded = true }
+                }
+                .padding(.horizontal, 28)
+                .padding(.top, 30)
+
+                Spacer()
+            }
+            .padding(.bottom, 24)
+        }
+        .onAppear {
+            withAnimation(.spring(response: 0.7, dampingFraction: 0.8)) {
+                appear = true
+            }
+        }
+    }
+
+    private func featureRow(icon: String, text: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(Theme.green)
-                .frame(width: 140, height: 140)
+                .frame(width: 34, height: 34)
                 .background(Theme.soft(Theme.green))
                 .clipShape(Circle())
-
-            Text("Entenda sua situação, organize suas dívidas e crie seu plano para chegar no verdinho.")
-                .font(Fonts.body())
+            Text(text)
+                .font(Fonts.caption())
                 .foregroundStyle(Theme.textSecondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 36)
-                .padding(.top, 20)
-
-            Spacer()
-
-            PrimaryButton("Começar", icon: "leaf.fill") {
-                withAnimation { app.onboarded = true }
-            }
-            .padding(.horizontal, 28)
-
-            Spacer()
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.bottom, 24)
     }
 }
 
@@ -157,53 +186,6 @@ struct DiagnosticView: View {
         }
     }
 
-    private var diagnosticResult: some View {
-        VStack(spacing: 24) {
-            Spacer()
-            Image(systemName: "checkmark.seal.fill")
-                .font(.system(size: 60, weight: .light))
-                .foregroundStyle(Theme.green)
-            Text("Seu diagnóstico está pronto")
-                .font(Fonts.title(26))
-                .foregroundStyle(Theme.text)
-                .multilineTextAlignment(.center)
-
-            AppCard {
-                VStack(spacing: 16) {
-                    HStack {
-                        Text("NÍVEL NO VERDINHO")
-                            .font(Fonts.captionStrong())
-                            .foregroundStyle(Theme.textSecondary)
-                        Spacer()
-                        Badge(text: scoreBand.title, color: scoreBand.color)
-                    }
-                    VerdinhoScore(score: computedScore)
-                    Text(computedScore >= 85
-                        ? "Parabéns! Sua saúde financeira está bem verde."
-                        : "Você está no caminho certo, mas ainda existem pontos para melhorar.")
-                        .font(Fonts.body())
-                        .foregroundStyle(Theme.textSecondary)
-                        .multilineTextAlignment(.center)
-                }
-            }
-
-            VStack(spacing: 10) {
-                IndicatorRow(icon: "arrow.down.left.circle.fill", title: "Receitas", value: Money.format(incomeValue), color: Theme.green)
-                IndicatorRow(icon: "arrow.up.right.circle.fill", title: "Despesas fixas", value: Money.format(expensesValue), color: Theme.danger)
-                IndicatorRow(icon: "banknote.fill", title: "Dívidas", value: Money.format(debtValue), color: Theme.warning)
-                IndicatorRow(icon: "creditcard.fill", title: "Cartões", value: "\(cardCount)", color: Theme.info)
-                IndicatorRow(icon: "calendar.badge.clock", title: "Guardar / pagar por mês", value: Money.format(saveValue), color: Theme.purple)
-            }
-
-            Spacer()
-
-            PrimaryButton("Entrar no No Verdinho", icon: "leaf.fill") {
-                app.levelScore = computedScore
-                withAnimation { app.diagnosticDone = true }
-            }
-        }
-    }
-
     private var currentBinding: Binding<String> {
         switch step {
         case 0: $income
@@ -239,6 +221,53 @@ struct DiagnosticView: View {
         case 50..<70: ("Evoluindo", Theme.warning)
         case 70..<85: ("No caminho", Theme.green)
         default: ("Verdinho", Theme.greenBright)
+        }
+    }
+
+    private var diagnosticResult: some View {
+        VStack(spacing: 20) {
+            Spacer()
+            Image(systemName: "checkmark.seal.fill")
+                .font(.system(size: 56, weight: .light))
+                .foregroundStyle(Theme.green)
+            Text("Seu diagnóstico está pronto")
+                .font(Fonts.title(25))
+                .foregroundStyle(Theme.text)
+                .multilineTextAlignment(.center)
+
+            AppCard {
+                VStack(spacing: 14) {
+                    HStack {
+                        Text("NÍVEL NO VERDINHO")
+                            .font(Fonts.captionStrong())
+                            .foregroundStyle(Theme.textSecondary)
+                        Spacer()
+                        Badge(text: scoreBand.title, color: scoreBand.color)
+                    }
+                    VerdinhoScore(score: computedScore)
+                    Text(computedScore >= 85
+                        ? "Parabéns! Sua saúde financeira está bem verde."
+                        : "Você está no caminho certo, mas ainda existem pontos para melhorar.")
+                        .font(Fonts.body())
+                        .foregroundStyle(Theme.textSecondary)
+                        .multilineTextAlignment(.center)
+                }
+            }
+
+            VStack(spacing: 10) {
+                IndicatorRow(icon: "arrow.down.left.circle.fill", title: "Receitas", value: Money.format(incomeValue), color: Theme.green)
+                IndicatorRow(icon: "arrow.up.right.circle.fill", title: "Despesas fixas", value: Money.format(expensesValue), color: Theme.danger)
+                IndicatorRow(icon: "banknote.fill", title: "Dívidas", value: Money.format(debtValue), color: Theme.warning)
+                IndicatorRow(icon: "creditcard.fill", title: "Cartões", value: cardCount, color: Theme.info)
+                IndicatorRow(icon: "calendar.badge.clock", title: "Guardar / pagar por mês", value: Money.format(saveValue), color: Theme.purple)
+            }
+
+            PrimaryButton("Entrar no No Verdinho", icon: "leaf.fill") {
+                app.levelScore = computedScore
+                withAnimation { app.diagnosticDone = true }
+            }
+
+            Spacer()
         }
     }
 }

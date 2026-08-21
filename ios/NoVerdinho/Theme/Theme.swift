@@ -18,20 +18,20 @@ extension Color {
 // MARK: - Paleta
 
 enum Theme {
-    // Superfícies (fundo preto profundo da identidade No Verdinho)
-    static let background = Color(hex: "050706")
+    // Superfícies (fundo quase preto com tom azulado do logo)
+    static let background = Color(hex: "04070A")
     static let surface = Color(hex: "0D1210")
     static let surfaceAlt = Color(hex: "121A16")
     static let surfaceElevated = Color(hex: "16201B")
     static let border = Color(hex: "1E2A24")
     static let borderStrong = Color(hex: "2E3A33")
 
-    // Verde — evolução, progresso, situações positivas
-    static let green = Color(hex: "2FE6A0")
-    static let greenBright = Color(hex: "4DF2B5")
-    static let greenDark = Color(hex: "0FA06C")
+    // Verde folha — extraído do logo (lima vibrante sobre fundo escuro)
+    static let green = Color(hex: "7BD24A")
+    static let greenBright = Color(hex: "A3EC66")
+    static let greenDark = Color(hex: "47822B")
     static let greenGradient = LinearGradient(
-        colors: [Color(hex: "4DF2B5"), Color(hex: "12C988")],
+        colors: [Color(hex: "9BE85C"), Color(hex: "4C9E2F")],
         startPoint: .leading, endPoint: .trailing
     )
 
