@@ -7,6 +7,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.10"
+    GENERATE_INFOPLIST_FILE: YES
     INFOPLIST_KEY_UILaunchScreen_Generation: YES
     INFOPLIST_KEY_CFBundleDisplayName: No Verdinho
     INFOPLIST_KEY_UIStatusBarStyle: UIStatusBarStyleLightContent
@@ -14,6 +15,16 @@ settings:
     CURRENT_PROJECT_VERSION: 1
     MARKETING_VERSION: 1.0.0
     ENABLE_PREVIEWS: YES
+    PRODUCT_BUNDLE_IDENTIFIER: br.com.noverdinho.ios
+    TARGETED_DEVICE_FAMILY: "1"
+    ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+    INFOPLIST_KEY_NSFaceIDUsageDescription: "Usamos o Face ID para proteger o acesso às suas finanças."
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: N8VSB7DMCQ
+  configs:
+    debug:
+      ENABLE_TESTABILITY: YES
 targets:
   NoVerdinho:
     type: application
@@ -27,19 +38,6 @@ targets:
       - path: Tests/NoVerdinhoTests
     dependencies:
       - target: NoVerdinho
-settings:
-  base:
-    PRODUCT_BUNDLE_IDENTIFIER: br.com.noverdinho.ios
-    TARGETED_DEVICE_FAMILY: "1"
-    GENERATE_INFOPLIST_FILE: YES
-    ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-    INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
-    INFOPLIST_KEY_NSFaceIDUsageDescription: "Usamos o Face ID para proteger o acesso às suas finanças."
-    CODE_SIGN_STYLE: Automatic
-    DEVELOPMENT_TEAM: N8VSB7DMCQ
-    configs:
-      debug:
-        ENABLE_TESTABILITY: YES
 schemes:
   NoVerdinho:
     build:
