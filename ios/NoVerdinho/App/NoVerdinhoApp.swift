@@ -122,8 +122,6 @@ struct NoVerdinhoApp: App {
                     OnboardingView()
                 } else if !app.registered {
                     RegisterView()
-                } else if !app.diagnosticDone {
-                    DiagnosticView()
                 } else {
                     ZStack {
                         RootTabView()

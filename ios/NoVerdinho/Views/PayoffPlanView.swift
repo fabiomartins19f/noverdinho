@@ -44,6 +44,45 @@ struct PayoffPlanView: View {
         return simulate(payment: defaultBudget)
     }
 
+    /// Juros da estratégia alternativa — base do banner "economize R$ X".
+    private var alternativeStrategyInterest: Double? {
+        let budget = Money.parse(budgetText) ?? 0
+        guard budget > 0, activeDebts.count > 1 else { return nil }
+        let alternativeOrder = activeDebts.sorted {
+            strategy == 0 ? $0.remainingBalance < $1.remainingBalance : $0.interestRate > $1.interestRate
+        }
+        let outcome = PayoffSimulator.simulate(debts: alternativeOrder, payment: budget)
+        return outcome.neverPaysOff ? nil : outcome.interest
+    }
+
+    @ViewBuilder
+    private var strategySavingsBanner: some View {
+        if let plan, !plan.neverPaysOff,
+           let alternative = alternativeStrategyInterest,
+           plan.interest + 1 < alternative {
+            AppCard {
+                HStack(spacing: 12) {
+                    Image(systemName: strategy == 0 ? "arrow.down.right.circle.fill" : "snowflake")
+                        .font(.system(size: 18))
+                        .foregroundStyle(Theme.greenBright)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(strategies[strategy]) economiza \(Money.format(alternative - plan.interest))")
+                            .font(Fonts.bodyMedium())
+                            .foregroundStyle(Theme.greenBright)
+                        Text("em juros comparado à \(strategies[1 - strategy])")
+                            .font(Fonts.caption(12))
+                            .foregroundStyle(Theme.textSecondary)
+                    }
+                    Spacer()
+                }
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(Theme.green.opacity(0.45), lineWidth: 1.5)
+            )
+        }
+    }
+
     var body: some View {
         ScreenScroll {
             VStack(alignment: .leading, spacing: 18) {
@@ -92,6 +131,8 @@ struct PayoffPlanView: View {
                 }
 
                 if let plan {
+                    strategySavingsBanner
+
                     AppCard {
                         VStack(alignment: .leading, spacing: 14) {
                             SectionTitle("Resultado")

@@ -337,6 +337,7 @@ struct BalanceCard: View {
     let balance: Double
     let weekDelta: Double
     var isBalanceHidden = false
+    var availableToSpend: Double? = nil
     var onToggleVisibility: (() -> Void)? = nil
 
     var body: some View {
@@ -373,6 +374,20 @@ struct BalanceCard: View {
                     .font(Fonts.caption(13))
             }
             .foregroundStyle(weekDelta >= 0 ? Theme.greenBright : Theme.danger)
+
+            if let availableToSpend, !isBalanceHidden {
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.shield.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                    Text("Disponível para gastar após compromissos do mês")
+                        .font(Fonts.caption(12))
+                    Spacer()
+                    Text(Money.format(availableToSpend))
+                        .font(Fonts.captionStrong().monospacedDigit())
+                }
+                .foregroundStyle(Theme.greenBright)
+                .accessibilityElement(children: .combine)
+            }
 
             Divider().overlay(Theme.border)
 
@@ -478,6 +493,8 @@ struct VerdinhoScore: View {
                 Image(systemName: "leaf.fill")
                     .font(.system(size: 30, weight: .semibold))
                     .foregroundStyle(Theme.greenBright)
+                    // A folha cresce conforme o nível melhora.
+                    .scaleEffect(0.75 + Double(min(max(score, 0), 100)) / 100 * 0.5)
                 Text("\(score)")
                     .font(.system(size: 34, weight: .bold, design: .rounded).monospacedDigit())
                     .foregroundStyle(Theme.text)

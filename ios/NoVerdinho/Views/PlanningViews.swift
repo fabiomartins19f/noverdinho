@@ -221,6 +221,13 @@ struct GoalsView: View {
     private var totalSaved: Double { app.goals.reduce(0) { $0 + $1.saved } }
     private var totalTarget: Double { app.goals.reduce(0) { $0 + $1.target } }
 
+    /// Dívida ativa mais cara (juros ≥ 60% a.a.) — base do aviso nas metas.
+    private var expensiveActiveDebt: Debt? {
+        app.debts
+            .filter { $0.status != .paidOff && $0.interestRate >= 60 }
+            .max { $0.interestRate < $1.interestRate }
+    }
+
     var body: some View {
         ScreenScroll {
             VStack(alignment: .leading, spacing: 18) {
@@ -290,6 +297,16 @@ struct GoalsView: View {
                                         .font(Fonts.caption(11))
                                 }
                                 .foregroundStyle(Theme.textSecondary)
+                            }
+                            if let expensiveDebt = expensiveActiveDebt {
+                                HStack(alignment: .top, spacing: 4) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .font(.system(size: 10))
+                                    Text("Priorize quitar \(expensiveDebt.creditor) (\(String(format: "%.0f", expensiveDebt.interestRate))% a.a.) antes de aumentar o aporte desta meta")
+                                        .font(Fonts.caption(11))
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                                .foregroundStyle(Theme.warning)
                             }
                         }
                     }

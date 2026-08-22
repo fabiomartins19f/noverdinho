@@ -185,18 +185,36 @@ extension CardPurchase {
 
 struct Transaction: Identifiable, Codable {
     enum Kind: String, Codable { case income, expense, transfer }
+    /// Origem do registro: manual, whatsapp ou open_finance (sync em nuvem).
+    enum Source: String, Codable {
+        case manual, whatsapp, openFinance = "open_finance"
+
+        var label: String {
+            switch self {
+            case .manual: "Manual"
+            case .whatsapp: "WhatsApp"
+            case .openFinance: "Open Finance"
+            }
+        }
+    }
     var id: UUID = UUID()
     let kind: Kind
     let name: String
     let category: String
     let amount: Double
     let date: Date
+    var source: Source = .manual
 
-    enum CodingKeys: String, CodingKey { case id, kind, name, category, amount, date }
+    enum CodingKeys: String, CodingKey { case id, kind, name, category, amount, date, source }
+
+    /// Chave estável para deduplicar importações da nuvem.
+    var externalKey: String {
+        "\(kind.rawValue)|\(name.lowercased())|\(category.lowercased())|\(Int(amount * 100))|\(Int(date.timeIntervalSince1970 / 3600))"
+    }
 }
 
 extension Transaction {
-    /// Compatibilidade: dados antigos não tinham "id" persistido.
+    /// Compatibilidade: dados antigos não tinham "id" nem "source" persistidos.
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
@@ -205,6 +223,7 @@ extension Transaction {
         category = try c.decode(String.self, forKey: .category)
         amount = try c.decode(Double.self, forKey: .amount)
         date = try c.decode(Date.self, forKey: .date)
+        source = try c.decodeIfPresent(Source.self, forKey: .source) ?? .manual
     }
 }
 
@@ -423,11 +442,9 @@ final class AppState: ObservableObject {
 
     @Published var onboarded = false { didSet { save() } }
     @Published var registered = false { didSet { save() } }
-    @Published var diagnosticDone = false { didSet { save() } }
     @Published var userName = "Usuário" { didSet { save() } }
     @Published var userEmail = "usuario@email.com" { didSet { save() } }
     @Published var balance: Double = 3240 { didSet { save() } }
-    @Published var levelScore = 72 { didSet { save() } }
     @Published var transactions: [Transaction] { didSet { save() } }
     @Published var debts: [Debt] { didSet { save() } }
     @Published var cards: [CreditCard] { didSet { save() } }
@@ -442,6 +459,22 @@ final class AppState: ObservableObject {
     @Published var appLockEnabled = false { didSet { save() } }
     /// Estado de sessão (não persistido): true bloqueia a interface atrás da trava.
     @Published var isLocked = false
+    /// Sync opcional com o backend próprio (WhatsApp + Open Finance).
+    @Published var syncServerURL = "" { didSet { save() } }
+    @Published var syncPhone = "" { didSet { save() } }
+
+    /// Puxa transações do backend e faz merge local. Retorna (importadas, duplicadas ignoradas).
+    @MainActor
+    func syncFromCloud() async throws -> (imported: Int, duplicates: Int) {
+        guard !syncServerURL.trimmingCharacters(in: .whitespaces).isEmpty,
+              !syncPhone.trimmingCharacters(in: .whitespaces).isEmpty else { return (0, 0) }
+        let incoming = try await CloudSyncService.fetch(serverURL: syncServerURL, phone: syncPhone)
+        let mergePlan = TransactionMerge.plan(existing: transactions, incoming: incoming)
+        guard !mergePlan.toImport.isEmpty else { return (0, mergePlan.duplicates) }
+        transactions.append(contentsOf: mergePlan.toImport)
+            transactions.sort { $0.date > $1.date }
+        return (mergePlan.toImport.count, mergePlan.duplicates)
+    }
 
     @Published var showAddSheet = false
     @Published var addPreset: AddSheetType?
@@ -591,6 +624,31 @@ final class AppState: ObservableObject {
             .sorted { $0.date < $1.date }
     }
 
+    /// Compromissos vencendo nos próximos 7 dias (seção "Hoje" da home).
+    var paymentsThisWeek: [UpcomingPayment] {
+        let week = Date.now.addingTimeInterval(86400 * 7)
+        return upcomingPayments.filter { $0.date <= week }
+    }
+
+    /// Saldo menos os compromissos do mês — o que realmente pode gastar.
+    var availableToSpend: Double {
+        max(balance - monthlyCommitments, 0)
+    }
+
+    /// Projeção de 30 dias: saldo + resultado do mês anterior (receitas −
+    /// despesas). Dados reais, sem suposição escondida.
+    var projectedBalance30d: Double? {
+        let cal = Calendar.current
+        guard
+            let prev = cal.date(byAdding: .month, value: -1, to: .now),
+            let range = cal.dateInterval(of: .month, for: prev)
+        else { return nil }
+        let monthTx = transactions.filter { range.contains($0.date) }
+        guard !monthTx.isEmpty else { return nil }
+        let net = monthTx.reduce(0.0) { $0 + ($1.kind == .income ? $1.amount : -$1.amount) }
+        return balance + net
+    }
+
     func invoiceDate(day: Int) -> Date {
         var components = Calendar.current.dateComponents([.year, .month], from: .now)
         components.day = min(max(day, 1), 28)
@@ -598,14 +656,38 @@ final class AppState: ObservableObject {
         return candidate < .now ? (Calendar.current.date(byAdding: .month, value: 1, to: candidate) ?? candidate) : candidate
     }
 
+    /// Nível calculado em tempo real pelo motor de saúde financeira.
+    /// Sem dados suficientes, devolve nil (a UI mostra estado neutro).
+    var healthScoreValue: Int? {
+        let hasData = monthIncome > 0 || totalDebt > 0 || !cards.isEmpty || balance != 0
+        guard hasData else { return nil }
+        return PurchaseSimulator.healthScore(
+            income: max(monthIncome, 1),
+            commitments: monthlyCommitments,
+            balance: balance,
+            debt: totalDebt
+        )
+    }
+
     var level: GreenLevel {
-        GreenLevel(
-            score: levelScore,
-            delta: 8,
-            evolution: Self.levelEvolution,
-            message: levelScore >= 70
-                ? "Você avançou 8 pontos neste mês"
-                : "Você está no caminho certo para o verdinho"
+        let evolution = Self.levelEvolution
+        if let score = healthScoreValue {
+            let previous = Int(evolution.dropLast().last?.value ?? Double(score))
+            let delta = score - previous
+            return GreenLevel(
+                score: score,
+                delta: delta,
+                evolution: evolution,
+                message: delta >= 0
+                    ? "Seu nível é calculado em tempo real pelos seus dados"
+                    : "Seus compromissos aumentaram — vale revisar o mês"
+            )
+        }
+        return GreenLevel(
+            score: 50,
+            delta: 0,
+            evolution: [],
+            message: "Cadastre receitas e contas para calcular seu nível"
         )
     }
 
@@ -667,17 +749,18 @@ final class AppState: ObservableObject {
         var cards: [CreditCard]
         var goals: [Goal]
         var budget: [BudgetCategory]
-        var diagnosticDone: Bool
-        var levelScore: Int
         var notificationsEnabled: Bool
         var balanceHidden: Bool
         var appLockEnabled: Bool
+        var syncServerURL: String
+        var syncPhone: String
 
         init(onboarded: Bool, registered: Bool, userName: String, userEmail: String,
              balance: Double, transactions: [Transaction], debts: [Debt],
              cards: [CreditCard], goals: [Goal], budget: [BudgetCategory],
-             diagnosticDone: Bool, levelScore: Int, notificationsEnabled: Bool,
-             balanceHidden: Bool, appLockEnabled: Bool) {
+             notificationsEnabled: Bool,
+             balanceHidden: Bool, appLockEnabled: Bool,
+             syncServerURL: String = "", syncPhone: String = "") {
             self.onboarded = onboarded
             self.registered = registered
             self.userName = userName
@@ -688,11 +771,11 @@ final class AppState: ObservableObject {
             self.cards = cards
             self.goals = goals
             self.budget = budget
-            self.diagnosticDone = diagnosticDone
-            self.levelScore = levelScore
             self.notificationsEnabled = notificationsEnabled
             self.balanceHidden = balanceHidden
             self.appLockEnabled = appLockEnabled
+            self.syncServerURL = syncServerURL
+            self.syncPhone = syncPhone
         }
 
         init(from decoder: Decoder) throws {
@@ -707,11 +790,11 @@ final class AppState: ObservableObject {
             cards = try c.decodeIfPresent([CreditCard].self, forKey: .cards) ?? []
             goals = try c.decodeIfPresent([Goal].self, forKey: .goals) ?? []
             budget = try c.decodeIfPresent([BudgetCategory].self, forKey: .budget) ?? []
-            diagnosticDone = try c.decodeIfPresent(Bool.self, forKey: .diagnosticDone) ?? false
-            levelScore = try c.decodeIfPresent(Int.self, forKey: .levelScore) ?? 72
             notificationsEnabled = try c.decodeIfPresent(Bool.self, forKey: .notificationsEnabled) ?? false
             balanceHidden = try c.decodeIfPresent(Bool.self, forKey: .balanceHidden) ?? false
             appLockEnabled = try c.decodeIfPresent(Bool.self, forKey: .appLockEnabled) ?? false
+            syncServerURL = try c.decodeIfPresent(String.self, forKey: .syncServerURL) ?? ""
+            syncPhone = try c.decodeIfPresent(String.self, forKey: .syncPhone) ?? ""
         }
     }
 
@@ -720,8 +803,6 @@ final class AppState: ObservableObject {
               let state = try? JSONDecoder().decode(PersistedState.self, from: data) else { return }
         onboarded = state.onboarded
         registered = state.registered
-        diagnosticDone = state.diagnosticDone
-        levelScore = state.levelScore
         userName = state.userName
         userEmail = state.userEmail
         balance = state.balance
@@ -733,6 +814,8 @@ final class AppState: ObservableObject {
         notificationsEnabled = state.notificationsEnabled
         balanceHidden = state.balanceHidden
         appLockEnabled = state.appLockEnabled
+        syncServerURL = state.syncServerURL
+        syncPhone = state.syncPhone
     }
 
     private func save() {
@@ -747,11 +830,11 @@ final class AppState: ObservableObject {
             cards: cards,
             goals: goals,
             budget: budget,
-            diagnosticDone: diagnosticDone,
-            levelScore: levelScore,
             notificationsEnabled: notificationsEnabled,
             balanceHidden: balanceHidden,
-            appLockEnabled: appLockEnabled
+            appLockEnabled: appLockEnabled,
+            syncServerURL: syncServerURL,
+            syncPhone: syncPhone
         )
         if let data = try? JSONEncoder().encode(state) {
             UserDefaults.standard.set(data, forKey: Self.storageKey)
@@ -770,11 +853,11 @@ final class AppState: ObservableObject {
         balanceHidden = false
         appLockEnabled = false
         isLocked = false
+        syncServerURL = ""
+        syncPhone = ""
         UserDefaults.standard.removeObject(forKey: Self.storageKey)
         onboarded = false
         registered = false
-        diagnosticDone = false
-        levelScore = 72
         userName = "Usuário"
         userEmail = "usuario@email.com"
         balance = 3240
@@ -806,8 +889,9 @@ enum NotificationScheduler {
                 let reminderDate = Calendar.current.date(byAdding: .day, value: -1, to: debt.dueDate) ?? debt.dueDate
                 guard reminderDate > .now else { continue }
                 let content = UNMutableNotificationContent()
-                content.title = "Conta chegando"
-                content.body = "\(debt.creditor) vence amanhã — \(Money.format(debt.installment))."
+                content.title = "⚠️ Atenção: \(debt.creditor) vence amanhã"
+                let availableAfter = max(app.balance - debt.installment, 0)
+                content.body = "Pagando \(Money.format(debt.installment)) hoje, você ainda terá \(Money.format(availableAfter)) de saldo. \(availableAfter < 600 ? "Fica apertado — vale avaliar." : "Dá pra manter o ritmo.")"
                 content.sound = .default
                 let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: reminderDate)
                 let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
