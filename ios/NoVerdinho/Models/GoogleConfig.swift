@@ -14,7 +14,7 @@ import Foundation
 // fluxo de nome — nada quebra.
 
 enum GoogleConfig {
-    static let clientID = "YOUR_GOOGLE_IOS_CLIENT_ID.apps.googleusercontent.com"
+    static let clientID = "603877215296-09e4m27j5ucu3j0kfdk4hll4pan97a0o.apps.googleusercontent.com"
 
     static var isConfigured: Bool {
         !clientID.hasPrefix("YOUR_")
