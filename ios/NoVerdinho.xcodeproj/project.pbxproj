@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		123678D5F70E0D802716BECB /* PayoffSimulator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AC475019653E113F4E4965E /* PayoffSimulator.swift */; };
 		13B32E0483349B67073B348F /* CashFlowRadarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D16104DE4A8268419726BD96 /* CashFlowRadarTests.swift */; };
+		1F717C592FCBB933E56FB0BA /* InsightsEngines.swift in Sources */ = {isa = PBXBuildFile; fileRef = F98E12FDCA807E5C45226F1E /* InsightsEngines.swift */; };
 		1FF12520EED50C5325B31629 /* PurchaseSimulator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D8F75A64F95256DFB77D6DF /* PurchaseSimulator.swift */; };
 		21D89398904C25AA4FEDDB37 /* DashboardViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEF52D8FE927817A9988A134 /* DashboardViews.swift */; };
 		2A3759B253203DDCC3782D56 /* NoVerdinhoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCD51AF2E5C7DBE1BD164C6B /* NoVerdinhoApp.swift */; };
@@ -23,9 +24,12 @@
 		6090813F0B8E42DD12CE0290 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = D650514DD2EEAF6B09D6EC43 /* Models.swift */; };
 		6ED67FF26B5F91924EDB67D5 /* ProfileViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 119896BE080BF7614B52C10C /* ProfileViews.swift */; };
 		8A0F5E9533D0CB739145DFA0 /* LockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41D2E385A26AFFB5ADCC05A /* LockView.swift */; };
+		8FCB180171682EF8C99A3AC7 /* BankConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03A8493073D588D8D4FD21A6 /* BankConnectView.swift */; };
 		92599ED96AAF49F676D756FC /* PurchaseSimulatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30DA9AE7EB564C8EDB6FCE7F /* PurchaseSimulatorView.swift */; };
+		92668DE5F05DF89699FF7EC2 /* EngagementEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 066DCC3AC7E4163B40422657 /* EngagementEngineTests.swift */; };
 		97F76820848918D14ECC3F2D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F2B100F2E9EE3842967296F0 /* Assets.xcassets */; };
 		A7D68B637041FBBE2E746D05 /* CardViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34E329AF5472026EA1740AFF /* CardViews.swift */; };
+		AA19FC1B6B89069313C0F191 /* InsightExtrasViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B4F0400AD459B914AB95776 /* InsightExtrasViews.swift */; };
 		AAA9B14008B22D9614CAB493 /* VerdinhoDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC19ECDAD395F6710401A177 /* VerdinhoDetailView.swift */; };
 		B11921CE5EDB4F96DF18A540 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = E906C55DC4D942AAC38F1F1F /* Components.swift */; };
 		B2F773B7D41EC0FCD9AF7AC4 /* CashFlowRadar.swift in Sources */ = {isa = PBXBuildFile; fileRef = C53B7B758385836E9EBB7E47 /* CashFlowRadar.swift */; };
@@ -49,11 +53,14 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		03A8493073D588D8D4FD21A6 /* BankConnectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BankConnectView.swift; sourceTree = "<group>"; };
+		066DCC3AC7E4163B40422657 /* EngagementEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngagementEngineTests.swift; sourceTree = "<group>"; };
 		119896BE080BF7614B52C10C /* ProfileViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileViews.swift; sourceTree = "<group>"; };
 		15AF6F5A287BB8469F7D96CA /* DebtDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebtDetailView.swift; sourceTree = "<group>"; };
 		1C7F2B5FC7D30924D99EB4FA /* NoVerdinho.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = NoVerdinho.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		24F38894CFAE5BFB0F7D05DF /* PayoffSimulatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PayoffSimulatorTests.swift; sourceTree = "<group>"; };
 		2B4B5EB5FD0FABB32C98D578 /* CloudSyncTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncTests.swift; sourceTree = "<group>"; };
+		2B4F0400AD459B914AB95776 /* InsightExtrasViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightExtrasViews.swift; sourceTree = "<group>"; };
 		2F8D8594E3000C2F0048B367 /* RegisterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegisterView.swift; sourceTree = "<group>"; };
 		30DA9AE7EB564C8EDB6FCE7F /* PurchaseSimulatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseSimulatorView.swift; sourceTree = "<group>"; };
 		32D72194984DDE87946B1840 /* PlanningViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanningViews.swift; sourceTree = "<group>"; };
@@ -79,6 +86,7 @@
 		E906C55DC4D942AAC38F1F1F /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
 		E9E238D06377AA652FAAD66C /* OnboardingViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingViews.swift; sourceTree = "<group>"; };
 		F2B100F2E9EE3842967296F0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		F98E12FDCA807E5C45226F1E /* InsightsEngines.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsEngines.swift; sourceTree = "<group>"; };
 		FCD51AF2E5C7DBE1BD164C6B /* NoVerdinhoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoVerdinhoApp.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -88,6 +96,7 @@
 			children = (
 				D16104DE4A8268419726BD96 /* CashFlowRadarTests.swift */,
 				2B4B5EB5FD0FABB32C98D578 /* CloudSyncTests.swift */,
+				066DCC3AC7E4163B40422657 /* EngagementEngineTests.swift */,
 				24F38894CFAE5BFB0F7D05DF /* PayoffSimulatorTests.swift */,
 				3EAA8FCD5EEB292F1A3735B6 /* PurchaseSimulatorTests.swift */,
 				848F62759F592B9BB2E4CE76 /* StatementParserTests.swift */,
@@ -140,6 +149,7 @@
 			children = (
 				C53B7B758385836E9EBB7E47 /* CashFlowRadar.swift */,
 				7C29419EFA118AF5B1F0484C /* CloudSync.swift */,
+				F98E12FDCA807E5C45226F1E /* InsightsEngines.swift */,
 				D650514DD2EEAF6B09D6EC43 /* Models.swift */,
 				9AC475019653E113F4E4965E /* PayoffSimulator.swift */,
 				8D8F75A64F95256DFB77D6DF /* PurchaseSimulator.swift */,
@@ -151,9 +161,11 @@
 		ABCF9FB468896E290528B1C0 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				03A8493073D588D8D4FD21A6 /* BankConnectView.swift */,
 				34E329AF5472026EA1740AFF /* CardViews.swift */,
 				BEF52D8FE927817A9988A134 /* DashboardViews.swift */,
 				15AF6F5A287BB8469F7D96CA /* DebtDetailView.swift */,
+				2B4F0400AD459B914AB95776 /* InsightExtrasViews.swift */,
 				4BD421CD56CFDBE13A64FC3C /* InsightViews.swift */,
 				E41D2E385A26AFFB5ADCC05A /* LockView.swift */,
 				E9E238D06377AA652FAAD66C /* OnboardingViews.swift */,
@@ -282,6 +294,7 @@
 			files = (
 				13B32E0483349B67073B348F /* CashFlowRadarTests.swift in Sources */,
 				FF95506F3D7B67E600D0464D /* CloudSyncTests.swift in Sources */,
+				92668DE5F05DF89699FF7EC2 /* EngagementEngineTests.swift in Sources */,
 				DBB894396FFE5302836248D2 /* PayoffSimulatorTests.swift in Sources */,
 				D603E77AE56DA1B49EC750EF /* PurchaseSimulatorTests.swift in Sources */,
 				42A72180F3065F9F2F7B3460 /* StatementParserTests.swift in Sources */,
@@ -292,13 +305,16 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8FCB180171682EF8C99A3AC7 /* BankConnectView.swift in Sources */,
 				A7D68B637041FBBE2E746D05 /* CardViews.swift in Sources */,
 				B2F773B7D41EC0FCD9AF7AC4 /* CashFlowRadar.swift in Sources */,
 				C3DCF1AC556EA6D405EB3055 /* CloudSync.swift in Sources */,
 				B11921CE5EDB4F96DF18A540 /* Components.swift in Sources */,
 				21D89398904C25AA4FEDDB37 /* DashboardViews.swift in Sources */,
 				53513FC6B8DB5C1889B9E3F5 /* DebtDetailView.swift in Sources */,
+				AA19FC1B6B89069313C0F191 /* InsightExtrasViews.swift in Sources */,
 				E7C27A964F32C592E039809C /* InsightViews.swift in Sources */,
+				1F717C592FCBB933E56FB0BA /* InsightsEngines.swift in Sources */,
 				8A0F5E9533D0CB739145DFA0 /* LockView.swift in Sources */,
 				6090813F0B8E42DD12CE0290 /* Models.swift in Sources */,
 				2A3759B253203DDCC3782D56 /* NoVerdinhoApp.swift in Sources */,

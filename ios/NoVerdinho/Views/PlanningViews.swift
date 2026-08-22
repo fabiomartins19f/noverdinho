@@ -9,6 +9,8 @@ struct PlanningView: View {
         ("questionmark.circle.fill", "Posso gastar?", "Análise de gasto", Theme.warning),
         ("sparkles", "Inteligência", "Insights e alertas", Theme.purple),
         ("chart.bar.fill", "Relatórios", "Evolução e tendências", Theme.info),
+        ("calendar", "Calendário", "Vencimentos e recebimentos", Theme.danger),
+        ("flag.checkered", "Plano de 90 dias", "Rumo ao verdinho", Theme.greenBright),
     ]
 
     var body: some View {
@@ -61,6 +63,8 @@ struct PlanningView: View {
         case "Metas": GoalsView()
         case "Posso gastar?": CanISpendView()
         case "Inteligência": IntelligenceView()
+        case "Calendário": FinanceCalendarView()
+        case "Plano de 90 dias": NinetyDayPlanView()
         default: ReportsView()
         }
     }

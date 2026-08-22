@@ -388,6 +388,12 @@ struct CanISpendResult {
 
 // MARK: - Nível No Verdinho
 
+/// Um ponto mensal do histórico de nível (chave "yyyy-MM").
+struct ScorePoint: Codable, Equatable {
+    let month: String
+    var score: Int
+}
+
 struct GreenLevel {
     let score: Int
     let delta: Int
@@ -462,6 +468,8 @@ final class AppState: ObservableObject {
     /// Sync opcional com o backend próprio (WhatsApp + Open Finance).
     @Published var syncServerURL = "" { didSet { save() } }
     @Published var syncPhone = "" { didSet { save() } }
+    /// Histórico mensal do nível (chave "yyyy-MM") — alimenta a evolução real.
+    @Published var scoreHistory: [ScorePoint] = [] { didSet { save() } }
 
     /// Puxa transações do backend e faz merge local. Retorna (importadas, duplicadas ignoradas).
     @MainActor
@@ -474,6 +482,92 @@ final class AppState: ObservableObject {
         transactions.append(contentsOf: mergePlan.toImport)
             transactions.sort { $0.date > $1.date }
         return (mergePlan.toImport.count, mergePlan.duplicates)
+    }
+
+    // MARK: Histórico do nível (evolução real)
+
+    /// Registra o score do mês corrente. Upsert por mês — o valor mais recente vence.
+    func recordScoreSnapshot() {
+        guard let score = healthScoreValue else { return }
+        let month = monthKey(Date())
+        if let index = scoreHistory.firstIndex(where: { $0.month == month }) {
+            scoreHistory[index].score = score
+        } else {
+            scoreHistory.append(.init(month: month, score: score))
+            scoreHistory.sort { $0.month < $1.month }
+        }
+    }
+
+    private func monthKey(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM"
+        return formatter.string(from: date)
+    }
+
+    /// Evolução real ordenada por mês (rótulo "MMM"). Vazia até haver 2 meses.
+    var realEvolution: [MonthlySeriesPoint] {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM"
+        return scoreHistory.sorted { $0.month < $1.month }.map {
+            MonthlySeriesPoint(label: formatter.monthSymbols[Int($0.month.suffix(2))! - 1].capitalized,
+                               value: Double($0.score))
+        }
+    }
+
+    // MARK: Dados derivados para motores de engajamento
+
+    var lastMonthExpense: Double? {
+        let cal = Calendar.current
+        guard let prev = cal.date(byAdding: .month, value: -1, to: .now),
+              let range = cal.dateInterval(of: .month, for: prev) else { return nil }
+        return transactions.filter { $0.kind == .expense && range.contains($0.date) }
+            .reduce(0.0) { $0 + $1.amount }
+    }
+
+    var currentMonthExpense: Double {
+        let start = Calendar.current.dateInterval(of: .month, for: .now)?.start ?? .now
+        return transactions.filter { $0.kind == .expense && $0.date >= start }
+            .reduce(0.0) { $0 + $1.amount }
+    }
+
+    var expensesByCategoryReal: [(name: String, value: Double)] {
+        let start = Calendar.current.dateInterval(of: .month, for: .now)?.start ?? .now
+        var grouped: [String: Double] = [:]
+        for tx in transactions where tx.kind == .expense && tx.date >= start {
+            grouped[tx.category, default: 0] += tx.amount
+        }
+        return grouped.map { (name: $0.key, value: $0.value) }
+            .sorted { $0.value > $1.value }
+    }
+
+    var achievements: [Achievement] {
+        let snapshot = AchievementsEngine.Snapshot(
+            hasAnyTransaction: !transactions.isEmpty,
+            paidOffDebtCount: debts.filter { $0.status == .paidOff }.count,
+            activeExpensiveDebtCount: debts.filter { $0.status != .paidOff && $0.interestRate >= 100 }.count,
+            lateDebtCount: debts.filter { $0.status == .overdue }.count,
+            runwayMonths: monthlyCommitments > 0 ? balance / monthlyCommitments : 3,
+            radarHasNegativeDay: cashFlowRadar.firstNegativeDay != nil,
+            healthScore: healthScoreValue
+        )
+        return AchievementsEngine.evaluate(snapshot)
+    }
+
+    var ninetyDayPlan: NinetyDayPlan.Plan {
+        NinetyDayPlan.build(
+            registeredDebtAndCards: debts.count + cards.count,
+            monthExpense: currentMonthExpense,
+            lastMonthExpense: lastMonthExpense,
+            availableToSpend: availableToSpend,
+            monthlyCommitments: monthlyCommitments
+        )
+    }
+
+    var monthlyChallenge: MonthlyChallenge.Challenge {
+        MonthlyChallenge.build(
+            lastMonthExpense: lastMonthExpense ?? 0,
+            currentMonthExpense: currentMonthExpense
+        )
     }
 
     @Published var showAddSheet = false
@@ -684,7 +778,7 @@ final class AppState: ObservableObject {
     }
 
     var level: GreenLevel {
-        let evolution = Self.levelEvolution
+        let evolution = realEvolution
         if let score = healthScoreValue {
             let previous = Int(evolution.dropLast().last?.value ?? Double(score))
             let delta = score - previous
@@ -704,12 +798,6 @@ final class AppState: ObservableObject {
             message: "Cadastre receitas e contas para calcular seu nível"
         )
     }
-
-    private static let levelEvolution: [MonthlySeriesPoint] = [
-        .init(label: "Mar", value: 41), .init(label: "Abr", value: 46),
-        .init(label: "Mai", value: 49), .init(label: "Jun", value: 55),
-        .init(label: "Jul", value: 62), .init(label: "Ago", value: 72),
-    ]
 
     let reports: [ReportRow] = [
         .init(title: "Receitas", values: [6500, 6800, 6200, 7500, 7200, 8700], color: Theme.green, prefix: "Receitas"),
@@ -768,13 +856,15 @@ final class AppState: ObservableObject {
         var appLockEnabled: Bool
         var syncServerURL: String
         var syncPhone: String
+        var scoreHistory: [ScorePoint]
 
         init(onboarded: Bool, registered: Bool, userName: String, userEmail: String,
              balance: Double, transactions: [Transaction], debts: [Debt],
              cards: [CreditCard], goals: [Goal], budget: [BudgetCategory],
              notificationsEnabled: Bool,
              balanceHidden: Bool, appLockEnabled: Bool,
-             syncServerURL: String = "", syncPhone: String = "") {
+             syncServerURL: String = "", syncPhone: String = "",
+             scoreHistory: [ScorePoint] = []) {
             self.onboarded = onboarded
             self.registered = registered
             self.userName = userName
@@ -790,6 +880,7 @@ final class AppState: ObservableObject {
             self.appLockEnabled = appLockEnabled
             self.syncServerURL = syncServerURL
             self.syncPhone = syncPhone
+            self.scoreHistory = scoreHistory
         }
 
         init(from decoder: Decoder) throws {
@@ -809,6 +900,7 @@ final class AppState: ObservableObject {
             appLockEnabled = try c.decodeIfPresent(Bool.self, forKey: .appLockEnabled) ?? false
             syncServerURL = try c.decodeIfPresent(String.self, forKey: .syncServerURL) ?? ""
             syncPhone = try c.decodeIfPresent(String.self, forKey: .syncPhone) ?? ""
+            scoreHistory = try c.decodeIfPresent([ScorePoint].self, forKey: .scoreHistory) ?? []
         }
     }
 
@@ -830,6 +922,7 @@ final class AppState: ObservableObject {
         appLockEnabled = state.appLockEnabled
         syncServerURL = state.syncServerURL
         syncPhone = state.syncPhone
+        scoreHistory = state.scoreHistory
     }
 
     private func save() {
@@ -848,7 +941,8 @@ final class AppState: ObservableObject {
             balanceHidden: balanceHidden,
             appLockEnabled: appLockEnabled,
             syncServerURL: syncServerURL,
-            syncPhone: syncPhone
+            syncPhone: syncPhone,
+            scoreHistory: scoreHistory
         )
         if let data = try? JSONEncoder().encode(state) {
             UserDefaults.standard.set(data, forKey: Self.storageKey)
@@ -869,6 +963,7 @@ final class AppState: ObservableObject {
         isLocked = false
         syncServerURL = ""
         syncPhone = ""
+        scoreHistory = []
         UserDefaults.standard.removeObject(forKey: Self.storageKey)
         onboarded = false
         registered = false

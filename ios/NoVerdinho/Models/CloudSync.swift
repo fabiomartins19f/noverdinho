@@ -106,4 +106,21 @@ struct CloudSyncService {
 
         return try JSONDecoder().decode([RemoteTransaction].self, from: data).compactMap { $0.toIncoming() }
     }
+
+    /// Pede um connect_token ao backend para abrir o widget do Open Finance.
+    static func getConnectToken(serverURL: String, phone: String) async throws -> String {
+        guard var components = URLComponents(string: serverURL) else { throw SyncError.badURL }
+        components.path = (components.path.hasSuffix("/") ? String(components.path.dropLast()) : components.path) + "/api/connect-token"
+        guard let url = components.url else { throw SyncError.badURL }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(["phone": phone])
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { throw SyncError.http(-1) }
+        struct TokenResponse: Decodable { let accessToken: String }
+        return try JSONDecoder().decode(TokenResponse.self, from: data).accessToken
+    }
 }

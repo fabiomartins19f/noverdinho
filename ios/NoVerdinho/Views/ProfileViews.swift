@@ -99,6 +99,42 @@ struct ProfileView: View {
 
                 CloudSyncCard()
 
+                AchievementsSection()
+
+                AppCard {
+                    VStack(alignment: .leading, spacing: 14) {
+                        SectionTitle("Explorar")
+                        VStack(spacing: 6) {
+                            NavigationLink {
+                                FinancialXRayView()
+                            } label: {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "stethoscope")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundStyle(Theme.green)
+                                        .frame(width: 34, height: 34)
+                                        .background(Theme.soft(Theme.green))
+                                        .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Raio-X financeiro")
+                                            .font(Fonts.bodyMedium())
+                                            .foregroundStyle(Theme.text)
+                                        Text("Renda, comprometimento, cartões e o que mais pesa")
+                                            .font(Fonts.caption(11))
+                                            .foregroundStyle(Theme.textTertiary)
+                                    }
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 12, weight: .bold))
+                                        .foregroundStyle(Theme.textTertiary)
+                                }
+                                .padding(.vertical, 4)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+
                 AppCard {
                     VStack(alignment: .leading, spacing: 14) {
                         SectionTitle("Conta")
@@ -837,6 +873,12 @@ struct CloudSyncCard: View {
     @State private var isSyncing = false
     @State private var resultMessage: String?
     @State private var isError = false
+    @State private var showBankConnect = false
+
+    private var canConnect: Bool {
+        !app.syncServerURL.trimmingCharacters(in: .whitespaces).isEmpty &&
+        !app.syncPhone.trimmingCharacters(in: .whitespaces).isEmpty
+    }
 
     var body: some View {
         AppCard {
@@ -869,6 +911,18 @@ struct CloudSyncCard: View {
                 }
                 .disabled(isSyncing)
                 .opacity(isSyncing ? 0.6 : 1)
+
+                if canConnect {
+                    SecondaryButton("Conectar banco (Open Finance)", icon: "link") {
+                        showBankConnect = true
+                    }
+                    .sheet(isPresented: $showBankConnect) {
+                        BankConnectView(serverURL: app.syncServerURL, phone: app.syncPhone) {
+                            Task { await sync() }
+                        }
+                        .environmentObject(app)
+                    }
+                }
             }
         }
     }

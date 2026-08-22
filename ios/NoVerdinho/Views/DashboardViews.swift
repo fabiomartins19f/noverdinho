@@ -17,6 +17,7 @@ struct DashboardView: View {
             }
         }
         .task {
+            app.recordScoreSnapshot()
             try? await Task.sleep(for: .seconds(0.35))
             withAnimation(.easeOut(duration: 0.3)) { loading = false }
         }
@@ -137,6 +138,8 @@ struct DashboardView: View {
                             color: Theme.warning,
                             deltaPositiveIsGood: false)
             }
+
+            challengeCard
 
             verdinhoSection
 
@@ -347,6 +350,39 @@ struct DashboardView: View {
                 VerdinhoDetailView()
                     .environmentObject(app)
             }
+        }
+    }
+
+    // MARK: Desafio do mês
+
+    @ViewBuilder
+    private var challengeCard: some View {
+        let challenge = app.monthlyChallenge
+        if challenge.target > 0 {
+            AppCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        SectionTitle("Desafio do mês")
+                        Spacer()
+                        Badge(text: challenge.isComplete ? "Concluído" : "\(Int(challenge.progress * 100))%",
+                              color: challenge.isComplete ? Theme.green : Theme.warning)
+                    }
+                    Text("Reduza seus gastos em \(Money.format(challenge.target)) comparado ao mês passado.")
+                        .font(Fonts.caption(12))
+                        .foregroundStyle(Theme.textSecondary)
+                    ProgressBar(progress: challenge.progress,
+                               color: challenge.isComplete ? Theme.greenBright : Theme.warning, height: 8)
+                    HStack {
+                        Text(challenge.isComplete
+                             ? "🎉 Economizou \(Money.format(challenge.saved)) — você está mais perto do verdinho!"
+                             : "Economizado \(Money.format(challenge.saved)) de \(Money.format(challenge.target))")
+                            .font(Fonts.caption(12))
+                            .foregroundStyle(challenge.isComplete ? Theme.greenBright : Theme.textSecondary)
+                        Spacer()
+                    }
+                }
+            }
+            .accessibilityElement(children: .combine)
         }
     }
 

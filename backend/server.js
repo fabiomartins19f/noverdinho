@@ -105,13 +105,17 @@ app.post('/webhook/open-finance', async (req, res) => {
       .select('user_id')
       .eq('item_id', itemId)
       .maybeSingle();
-    if (!account) return res.status(200).send({ status: 'item desconhecido' });
+
+    // ITEM_CREATED chega ANTES de haver vínculo no banco: o clientUserId
+    // (nosso user id) vem no próprio payload e cria o vínculo.
+    const clientUserId = req.body.data?.item?.clientUserId;
+    if (!account && !clientUserId) return res.status(200).send({ status: 'item desconhecido' });
 
     // Eventos de transação: TRANSACTION_CREATED/UPDATED trazem a transação em data.transaction.
     const tx = req.body.data?.transaction;
     if (tx && ['TRANSACTION_CREATED', 'TRANSACTION_UPDATED'].includes(event)) {
       await insertTransaction({
-        userId: account.user_id,
+        userId: (account || {}).user_id || clientUserId,
         description: tx.description || 'Transação',
         amount: Math.abs(tx.amount ?? 0),
         category: tx.category?.replace(/_/g, ' ') || 'Open Finance',
@@ -123,7 +127,13 @@ app.post('/webhook/open-finance', async (req, res) => {
 
     // Primeiro sync após conectar: item criado/atualizado dispara busca completa.
     if (['ITEM_CREATED', 'ITEM_UPDATED'].includes(event)) {
-      await syncAllTransactionsForItem(itemId, account.user_id);
+      if (clientUserId && event === 'ITEM_CREATED') {
+        await supabase
+          .from('user_bank_accounts')
+          .upsert({ user_id: clientUserId, item_id: itemId, institution_name: req.body.data?.item?.institution?.name || null })
+          .onConflict('item_id');
+      }
+      await syncAllTransactionsForItem(itemId, (account || {}).user_id || clientUserId);
     }
 
     res.status(200).send({ status: 'received' });
@@ -183,10 +193,14 @@ async function getPluggyApiKey() {
 }
 
 // Cria connect_token para o app abrir o widget do Pluggy.
+// O app envia o TELEFONE; o servidor resolve o usuário e usa o id interno
+// como clientUserId — assim o ITEM_CREATED chega com clientUserId e sabemos
+// a quem vincular a conexão.
 app.post('/api/connect-token', async (req, res) => {
   try {
-    const { userId } = req.body;
-    if (!userId) return res.status(400).send({ error: 'userId obrigatório' });
+    const phone = String(req.body.phone || '').replace(/\D/g, '');
+    if (!phone) return res.status(400).send({ error: 'phone obrigatório' });
+    const userId = await getOrCreateUser(phone);
     const apiKey = await getPluggyApiKey();
     const response = await fetch('https://api.pluggy.ai/connect_token', {
       method: 'POST',
@@ -197,7 +211,7 @@ app.post('/api/connect-token', async (req, res) => {
       }),
     });
     const body = await response.json();
-    res.status(response.ok ? 200 : 502).send(body);
+    res.status(response.ok ? 200 : 502).send({ accessToken: body.accessToken, error: body.error });
   } catch (error) {
     res.status(500).send({ error: error.message });
   }
