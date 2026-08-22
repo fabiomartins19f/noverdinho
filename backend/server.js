@@ -12,6 +12,16 @@ app.use(express.json({
   verify: (req, _res, buf) => { req.rawBody = buf; }
 }));
 
+// Configuração obrigatória — sem ela o servidor NÃO deve subir. Falha com
+// mensagem clara (o log da Railway mostra qual variável está faltando).
+const requiredEnv = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'CLIENT_ACCESS_TOKEN'];
+const missingEnv = requiredEnv.filter((key) => !process.env[key]);
+if (missingEnv.length > 0) {
+  console.error(`[config] FALTANDO VARIÁVEIS DE AMBIENTE: ${missingEnv.join(', ')}`);
+  console.error('[config] Adicione-as na aba Variables do serviço e faça Redeploy.');
+  process.exit(1);
+}
+
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
 
