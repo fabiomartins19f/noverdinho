@@ -450,7 +450,7 @@ final class AppState: ObservableObject {
     @Published var registered = false { didSet { save() } }
     @Published var userName = "Usuário" { didSet { save() } }
     @Published var userEmail = "usuario@email.com" { didSet { save() } }
-    @Published var balance: Double = 3240 { didSet { save() } }
+    @Published var balance: Double = 0 { didSet { save() } }
     @Published var transactions: [Transaction] { didSet { save() } }
     @Published var debts: [Debt] { didSet { save() } }
     @Published var cards: [CreditCard] { didSet { save() } }
@@ -590,11 +590,13 @@ final class AppState: ObservableObject {
     @Published var selectedTab: Tab = .home
 
     init() {
-        transactions = Self.defaultTransactions
-        debts = Self.defaultDebts
-        cards = Self.defaultCards
-        goals = Self.defaultGoals
-        budget = Self.defaultBudget
+        // Começa vazio — sem dados de demonstração. O usuário constrói sua
+        // vida financeira real (o sync da nuvem também alimenta isso).
+        transactions = []
+        debts = []
+        cards = []
+        goals = []
+        budget = []
         load()
         if appLockEnabled && registered {
             isLocked = true
@@ -940,8 +942,8 @@ final class AppState: ObservableObject {
             onboarded = try c.decodeIfPresent(Bool.self, forKey: .onboarded) ?? false
             registered = try c.decodeIfPresent(Bool.self, forKey: .registered) ?? false
             userName = try c.decodeIfPresent(String.self, forKey: .userName) ?? "Usuário"
-            userEmail = try c.decodeIfPresent(String.self, forKey: .userEmail) ?? "usuario@email.com"
-            balance = try c.decodeIfPresent(Double.self, forKey: .balance) ?? 3240
+            userEmail = try c.decodeIfPresent(String.self, forKey: .userEmail) ?? ""
+            balance = try c.decodeIfPresent(Double.self, forKey: .balance) ?? 0
             transactions = try c.decodeIfPresent([Transaction].self, forKey: .transactions) ?? []
             debts = try c.decodeIfPresent([Debt].self, forKey: .debts) ?? []
             cards = try c.decodeIfPresent([CreditCard].self, forKey: .cards) ?? []
@@ -969,7 +971,7 @@ final class AppState: ObservableObject {
         debts = state.debts
         cards = state.cards
         goals = state.goals
-        budget = state.budget.isEmpty ? Self.defaultBudget : state.budget
+        budget = state.budget
         notificationsEnabled = state.notificationsEnabled
         balanceHidden = state.balanceHidden
         appLockEnabled = state.appLockEnabled
@@ -1025,13 +1027,13 @@ final class AppState: ObservableObject {
         onboarded = false
         registered = false
         userName = "Usuário"
-        userEmail = "usuario@email.com"
-        balance = 3240
-        transactions = Self.defaultTransactions
-        debts = Self.defaultDebts
-        cards = Self.defaultCards
-        goals = Self.defaultGoals
-        budget = Self.defaultBudget
+        userEmail = ""
+        balance = 0
+        transactions = []
+        debts = []
+        cards = []
+        goals = []
+        budget = []
         selectedTab = .home
     }
 }

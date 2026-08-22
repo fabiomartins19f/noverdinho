@@ -7,6 +7,7 @@ struct RegisterView: View {
     @State private var name = ""
     @State private var isGoogleLoading = false
     @State private var googleError: String?
+    @State private var showGoogleConfigAlert = false
 
     private var valid: Bool {
         name.trimmingCharacters(in: .whitespaces).count >= 2
@@ -61,6 +62,11 @@ struct RegisterView: View {
                 .frame(maxWidth: .infinity)
         }
         .padding(.horizontal, 28)
+        .alert("Login com Google", isPresented: $showGoogleConfigAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Ainda não configurado. Crie um OAuth Client ID para iOS no Google Cloud Console e cole em GoogleConfig.swift (detalhes no SETUP.md).")
+        }
     }
 
     private var divider: some View {
@@ -114,6 +120,8 @@ struct RegisterView: View {
             app.userEmail = account.email
             Haptics.success()
             withAnimation { app.registered = true }
+        } catch GoogleAuthService.AuthError.notConfigured {
+            showGoogleConfigAlert = true
         } catch GoogleAuthService.AuthError.cancelled {
             // Usuário fechou a tela — sem erro.
         } catch {
