@@ -149,6 +149,9 @@ struct NoVerdinhoApp: App {
                     app.isLocked = true
                 }
             }
+            .onOpenURL { url in
+                GoogleAuthService.handle(url)
+            }
         }
     }
 }

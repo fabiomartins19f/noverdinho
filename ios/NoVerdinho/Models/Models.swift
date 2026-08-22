@@ -1007,6 +1007,7 @@ final class AppState: ObservableObject {
     // MARK: Sessão
 
     func logout() {
+        GoogleAuthService.signOut()
         registered = false
         selectedTab = .home
     }
