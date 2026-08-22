@@ -1,0 +1,21 @@
+app = "noverdinho-backend"
+primary_region = "gru"
+
+[build]
+
+[env]
+  NODE_ENV = "production"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 1
+
+# Copie o restante para `fly secrets set`:
+#   fly secrets set SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=...
+#   fly secrets set CLIENT_ACCESS_TOKEN=... PUBLIC_BASE_URL=https://noverdinho-backend.fly.dev
+#   fly secrets set WHATSAPP_VERIFY_TOKEN=... WHATSAPP_APP_SECRET=...
+#   fly secrets set PLUGGY_CLIENT_ID=... PLUGGY_CLIENT_SECRET=... PLUGGY_WEBHOOK_SECRET=...
+#   fly secrets set OPENAI_API_KEY=...
