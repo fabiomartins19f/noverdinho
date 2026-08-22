@@ -13,6 +13,7 @@ struct StatementImportView: View {
     @State private var targetCard: CreditCard?
     @State private var importMessage: String?
     @State private var saved = false
+    @State private var isProcessing = false
 
     var body: some View {
         ScreenScroll {
@@ -35,8 +36,22 @@ struct StatementImportView: View {
                         PrimaryButton("Escolher arquivo", icon: "folder.fill") {
                             showFilePicker = true
                         }
+                        .disabled(isProcessing)
                         SecondaryButton("Colar texto da fatura", icon: "doc.on.clipboard") {
                             withAnimation(.easeInOut(duration: 0.2)) { showPasteField.toggle() }
+                        }
+                        .disabled(isProcessing)
+
+                        if isProcessing {
+                            HStack(spacing: 10) {
+                                ProgressView()
+                                    .tint(Theme.green)
+                                Text("Lendo o extrato…")
+                                    .font(Fonts.caption(12))
+                                    .foregroundStyle(Theme.textSecondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
                         }
                     }
                 }
@@ -64,8 +79,8 @@ struct StatementImportView: View {
                             PrimaryButton("Analisar texto", icon: "sparkles") {
                                 process(text: pastedText)
                             }
-                            .disabled(pastedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                            .opacity(pastedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1)
+                            .disabled(pastedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isProcessing)
+                            .opacity(pastedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isProcessing ? 0.5 : 1)
                         }
                     }
                 }
@@ -194,11 +209,28 @@ struct StatementImportView: View {
 
     /// Pipeline comum ao arquivo e ao texto colado.
     private func process(text: String) {
-        let parsed = StatementParser.parse(text)
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            importMessage = "O arquivo ou texto está vazio."
+            Haptics.error()
+            return
+        }
 
+        isProcessing = true
         saved = false
 
-        // Vincula ao cartão detectado ou ao primeiro cartão do usuário.
+        // Extração de PDF pode demorar — roda fora da thread de UI.
+        Task.detached(priority: .userInitiated) {
+            let parsed = StatementParser.parse(trimmed)
+            await MainActor.run {
+                isProcessing = false
+                finishProcessing(parsed: parsed)
+            }
+        }
+    }
+
+    @MainActor
+    private func finishProcessing(parsed: StatementParseResult) {
         var message: String?
         targetCard = nil
         if let detected = parsed.detectedCardName {
@@ -217,11 +249,12 @@ struct StatementImportView: View {
 
         if parsed.lines.isEmpty {
             message = "Não reconhecemos nenhuma compra nesse texto. Verifique se é a fatura completa."
+            Haptics.error()
         }
 
         importMessage = message
         parseResult = parsed
-        Haptics.success()
+        if !parsed.lines.isEmpty { Haptics.success() }
     }
 
     private func save(_ result: StatementParseResult) {

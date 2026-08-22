@@ -97,6 +97,8 @@ struct ProfileView: View {
                     }
                 }
 
+                CloudSyncCard()
+
                 AppCard {
                     VStack(alignment: .leading, spacing: 14) {
                         SectionTitle("Conta")
@@ -192,7 +194,7 @@ struct ProfileView: View {
             "user": [
                 "name": app.userName,
                 "email": app.userEmail,
-                "levelScore": app.levelScore,
+                "levelScore": app.healthScoreValue ?? 50,
             ],
             "balance": app.balance,
             "transactions": app.transactions.map { transaction in
@@ -344,6 +346,28 @@ struct AddSheetView: View {
         )
     }
 
+    // MARK: Ações rápidas do formulário
+
+    private func quickAction(_ label: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button {
+            Haptics.light()
+            action()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .semibold))
+                Text(label)
+                    .font(Fonts.captionStrong())
+            }
+            .foregroundStyle(Theme.green)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Theme.soft(Theme.green))
+            .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
     private var title: String {
         switch app.addPreset {
         case .debt: "Nova dívida"
@@ -357,6 +381,27 @@ struct AddSheetView: View {
 
     private var transactionForm: some View {
         VStack(alignment: .leading, spacing: 14) {
+            // Ações rápidas: pré-preenchem o formulário com um toque.
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    quickAction("Recebi salário", icon: "banknote.fill") {
+                        kind = .income
+                        name = name.isEmpty ? "Salário" : name
+                        category = "Salário"
+                    }
+                    quickAction("Paguei uma conta", icon: "receipt.fill") {
+                        kind = .expense
+                        category = category == "Salário" ? "Moradia" : category
+                    }
+                    quickAction("Registrar dívida", icon: "clipboard.fill") {
+                        app.addPreset = .debt
+                    }
+                    quickAction("Criar meta", icon: "target") {
+                        app.addPreset = .goal
+                    }
+                }
+            }
+
             HStack(spacing: 8) {
                 ForEach([Transaction.Kind.expense, .income], id: \.self) { option in
                     Button {
@@ -783,5 +828,68 @@ struct ReportsView: View {
         }
         .navigationTitle("Relatórios")
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+// MARK: - Card: sincronização com o backend (WhatsApp + Open Finance)
+
+struct CloudSyncCard: View {
+    @EnvironmentObject var app: AppState
+    @State private var isSyncing = false
+    @State private var resultMessage: String?
+    @State private var isError = false
+
+    var body: some View {
+        AppCard {
+            VStack(alignment: .leading, spacing: 14) {
+                SectionTitle("Sincronização")
+                Text("Conecte o app ao seu backend para receber transações do WhatsApp e do Open Finance. Tudo continua salvo neste iPhone.")
+                    .font(Fonts.caption(12))
+                    .foregroundStyle(Theme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                FormField("https://seu-backend.com", text: $app.syncServerURL,
+                          icon: "server.rack", keyboard: .URL,
+                          autocapitalization: .never, autocorrectionDisabled: true)
+                FormField("Seu telefone (ex: 5521999999999)", text: $app.syncPhone,
+                          icon: "phone.fill", keyboard: .phonePad)
+
+                if let resultMessage {
+                    HStack(spacing: 6) {
+                        Image(systemName: isError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                            .font(.system(size: 12))
+                        Text(resultMessage)
+                            .font(Fonts.caption(12))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .foregroundStyle(isError ? Theme.danger : Theme.green)
+                }
+
+                PrimaryButton(isSyncing ? "Sincronizando…" : "Sincronizar agora", icon: "arrow.triangle.2.circlepath") {
+                    Task { await sync() }
+                }
+                .disabled(isSyncing)
+                .opacity(isSyncing ? 0.6 : 1)
+            }
+        }
+    }
+
+    private func sync() async {
+        isSyncing = true
+        defer { isSyncing = false }
+        do {
+            let outcome = try await app.syncFromCloud()
+            isError = false
+            if outcome.imported == 0 && outcome.duplicates == 0 {
+                resultMessage = "Nada novo no servidor por enquanto."
+            } else if outcome.imported == 0 {
+                resultMessage = "\(outcome.duplicates) transações já existiam — nada importado."
+            } else {
+                Haptics.success()
+                resultMessage = "\(outcome.imported) importadas · \(outcome.duplicates) duplicatas ignoradas."
+            }
+        } catch {
+            isError = true
+            resultMessage = error.localizedDescription
+        }
     }
 }

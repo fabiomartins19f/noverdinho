@@ -1,0 +1,31 @@
+name: iOS CI
+
+on:
+  push:
+    paths: ["ios/**", ".github/workflows/ios.yml"]
+  pull_request:
+    paths: ["ios/**"]
+
+jobs:
+  test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install xcodegen
+        run: brew install xcodegen
+
+      - name: Generate project
+        working-directory: ios
+        run: ./generate.sh
+
+      - name: Run tests
+        working-directory: ios
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project NoVerdinho.xcodeproj \
+            -scheme NoVerdinho \
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO | xcbeautify --quiet || exit 1
