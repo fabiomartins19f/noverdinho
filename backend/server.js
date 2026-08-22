@@ -41,16 +41,21 @@ const allowInsecureDev =
 // O telefone sozinho NÃO é credencial: exige-se um token compartilhado
 // (CLIENT_ACCESS_TOKEN) enviado como Authorization: Bearer.
 
+// Comparação constante-tempo que NÃO explode quando os tamanhos diferem.
+function safeEqual(a, b) {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
 function requireClientAuth(req, res, next) {
   if (!CLIENT_ACCESS_TOKEN) {
     console.error('CLIENT_ACCESS_TOKEN não configurado — rotas do app recusadas.');
     return res.status(500).send({ error: 'servidor mal configurado' });
   }
   const presented = (req.get('Authorization') || '').replace(/^Bearer\s+/i, '');
-  const ok =
-    presented.length > 0 &&
-    crypto.timingSafeEqual(Buffer.from(presented), Buffer.from(CLIENT_ACCESS_TOKEN));
-  if (!ok) return res.status(401).send({ error: 'não autorizado' });
+  if (!safeEqual(presented, CLIENT_ACCESS_TOKEN)) return res.status(401).send({ error: 'não autorizado' });
   next();
 }
 
@@ -104,11 +109,7 @@ function verifyMetaSignature(req) {
   const signature = req.get('X-Hub-Signature-256') || '';
   const expected =
     'sha256=' + crypto.createHmac('sha256', WHATSAPP_APP_SECRET).update(req.rawBody).digest('hex');
-  try {
-    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
-  } catch {
-    return false;
-  }
+  return safeEqual(signature, expected);
 }
 
 function verifyPluggySignature(req) {
@@ -116,11 +117,7 @@ function verifyPluggySignature(req) {
   // Pluggy assina com HMAC-SHA256 do corpo usando o webhook secret.
   const signature = req.get('x-pluggy-signature') || '';
   const expected = crypto.createHmac('sha256', PLUGGY_WEBHOOK_SECRET).update(req.rawBody).digest('hex');
-  try {
-    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
-  } catch {
-    return false;
-  }
+  return safeEqual(signature, expected);
 }
 
 // O tipo da transação do Pluggy define a direção do dinheiro.
