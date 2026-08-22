@@ -102,6 +102,8 @@ struct DashboardView: View {
 
             todaySection
 
+            radarCard
+
             NavigationLink {
                 TransactionsView()
             } label: {
@@ -227,6 +229,21 @@ struct DashboardView: View {
         case ..<1: Theme.danger
         case 1...2: Theme.warning
         default: Theme.green
+        }
+    }
+
+    // MARK: Radar de Futuro
+
+    @ViewBuilder
+    private var radarCard: some View {
+        let forecast = app.cashFlowRadar
+        if let day = forecast.firstNegativeDay {
+            FinancialAlertCard(
+                message: "No ritmo atual, seu saldo fica negativo em \(day) dia\(day > 1 ? "s" : "") — o ponto mais apertado é \(Money.format(forecast.minimumProjected)). Reduza o gasto médio de \(Money.format(forecast.variableDailyAverage))/dia ou adiante uma receita.",
+                actionTitle: "Ver plano"
+            ) {
+                app.selectedTab = .debts
+            }
         }
     }
 

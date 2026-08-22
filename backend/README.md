@@ -41,7 +41,7 @@ npm start   # porta 3000
 
 | Método | Rota | Descrição |
 | ------ | ---- | --------- |
-| POST | `/webhook/whatsapp` | Webhook da Meta (GET faz a verificação inicial) |
+| POST | `/webhook/whatsapp` | Webhook da Meta — texto e **áudio** (transcrito com Whisper); responde no tom do copiloto |
 | POST | `/webhook/open-finance` | Webhook do Pluggy (transações e sync completo) |
 | POST | `/api/connect-token` | Gera token para abrir o widget de conexão do Pluggy |
 | GET | `/api/transactions/:phone` | Transações do usuário (usado pelo app iOS) |

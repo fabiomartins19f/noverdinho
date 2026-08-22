@@ -204,6 +204,45 @@ app.post('/api/connect-token', async (req, res) => {
 });
 
 // ============================================================
+// Copiloto NoVerdinho — personalidade da IA
+// ============================================================
+
+const EXTRACTION_SYSTEM_PROMPT = `Você é o "NoVerdinho", um copiloto financeiro pessoal inteligente, amigável, direto, informal e absolutamente LIVRE DE JULGAMENTOS. Seu objetivo não é vigiar ou punir o usuário, mas protegê-lo de problemas financeiros futuros.
+
+TAREFA: extrair da mensagem do usuário os dados do registro financeiro em JSON puro contendo exatamente estas chaves:
+- "description": string curta (ex: "almoço no restaurante")
+- "amount": número positivo
+- "kind": "income" se dinheiro ENTROU, "expense" se SAIU
+- "category": uma de Salário, Freelance, Alimentação, Moradia, Transporte, Saúde, Lazer, Assinaturas, Outros
+- "reply": confirmação curta para WhatsApp (máx. 2 frases), no tom do copiloto: humano, sem julgamentos, gírias leves quando couber ("tranquilo", "conta comigo"), emojis com moderação (✅ 💡 ⚠️). Exemplo: "Anotado ✅ Almoço de 45 no Alimentação. Conta comigo pra manter seu verdinho 🌱"
+
+Responda SOMENTE o JSON.`;
+
+async function transcribeWhatsAppAudio(mediaId) {
+  const metaRes = await fetch(
+    `https://graph.facebook.com/v21.0/${mediaId}`,
+    { headers: { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}` } }
+  );
+  if (!metaRes.ok) throw new Error(`Meta media ${metaRes.status}`);
+  const { url } = await metaRes.json();
+  if (!url) throw new Error('sem URL de mídia');
+
+  const audioRes = await fetch(url, {
+    headers: { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}` }
+  });
+  if (!audioRes.ok) throw new Error(`download áudio ${audioRes.status}`);
+  const buffer = Buffer.from(await audioRes.arrayBuffer());
+
+  const file = new File([buffer], 'audio.ogg', { type: 'audio/ogg' });
+  const transcription = await openai.audio.transcriptions.create({
+    model: 'whisper-1',
+    file,
+    language: 'pt',
+  });
+  return transcription.text;
+}
+
+// ============================================================
 // ROTA 2: WEBHOOK DO WHATSAPP (Meta Cloud API)
 // ============================================================
 
@@ -223,7 +262,17 @@ app.post('/webhook/whatsapp', async (req, res) => {
     if (!messageData) return res.sendStatus(200);
 
     const userPhone = messageData.from;
-    const userText = messageData.text?.body;
+    let userText = messageData.text?.body;
+
+    // Zero-friction: aceita ÁUDIO transcrevendo com Whisper.
+    if (!userText && messageData.audio?.id && process.env.OPENAI_API_KEY) {
+      try {
+        userText = await transcribeWhatsAppAudio(messageData.audio.id);
+      } catch (err) {
+        console.error('Falha ao transcrever áudio:', err.message);
+        return res.sendStatus(200);
+      }
+    }
     if (!userPhone || !userText) return res.sendStatus(200);
 
     if (!openai) {
@@ -234,11 +283,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
     const aiResponse = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
       messages: [
-        {
-          role: 'system',
-          content:
-            'Você é um assistente financeiro brasileiro. Extraia da frase do usuário os dados em JSON puro contendo exatamente as chaves: "description" (string curta), "amount" (número positivo; use sinal implícito — se a frase indicar dinheiro ENTRANDO, devolva kind="income", senão kind="expense"), "category" (uma de: Salário, Freelance, Alimentação, Moradia, Transporte, Saúde, Lazer, Assinaturas, Outros), "kind" ("income"|"expense"). Responda somente o JSON.',
-        },
+        { role: 'system', content: EXTRACTION_SYSTEM_PROMPT },
         { role: 'user', content: userText },
       ],
       response_format: { type: 'json_object' },
@@ -257,7 +302,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
       externalId: `wa:${messageData.id}`,
     });
 
-    // Responde no WhatsApp confirmando o registro (opcional, requer token).
+    // Responde no WhatsApp no tom do copiloto (opcional, requer token).
     if (inserted && process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID) {
       await fetch(`https://graph.facebook.com/v21.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
         method: 'POST',
@@ -266,7 +311,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
           messaging_product: 'whatsapp',
           to: userPhone,
           type: 'text',
-          text: { body: `✅ Anotado: ${parsed.description} — R$ ${(parsed.amount || 0).toFixed(2)} (${parsed.category}).` },
+          text: { body: parsed.reply || `✅ Anotado: ${parsed.description} — R$ ${(parsed.amount || 0).toFixed(2)}.` },
         }),
       }).catch((err) => console.error('Falha ao responder WhatsApp:', err.message));
     }

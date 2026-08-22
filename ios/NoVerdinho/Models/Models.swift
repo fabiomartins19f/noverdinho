@@ -649,6 +649,20 @@ final class AppState: ObservableObject {
         return balance + net
     }
 
+    /// Radar de Futuro: projeção diária com receitas previstas, compromissos
+    /// nos vencimentos e gasto variável médio. Detecta o dia do aperto.
+    var cashFlowRadar: CashFlowRadar.Forecast {
+        let incomeEvents = transactions.filter { $0.kind == .income && $0.date > .now }
+            .map { (date: $0.date, amount: $0.amount) }
+        let fixed = upcomingPayments.map { (date: $0.date, amount: $0.amount) }
+        return CashFlowRadar.forecast(
+            balance: balance,
+            incomeEvents: incomeEvents,
+            fixedCommitments: fixed,
+            transactions: transactions
+        )
+    }
+
     func invoiceDate(day: Int) -> Date {
         var components = Calendar.current.dateComponents([.year, .month], from: .now)
         components.day = min(max(day, 1), 28)

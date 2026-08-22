@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		123678D5F70E0D802716BECB /* PayoffSimulator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AC475019653E113F4E4965E /* PayoffSimulator.swift */; };
+		13B32E0483349B67073B348F /* CashFlowRadarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D16104DE4A8268419726BD96 /* CashFlowRadarTests.swift */; };
 		1FF12520EED50C5325B31629 /* PurchaseSimulator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D8F75A64F95256DFB77D6DF /* PurchaseSimulator.swift */; };
 		21D89398904C25AA4FEDDB37 /* DashboardViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEF52D8FE927817A9988A134 /* DashboardViews.swift */; };
 		2A3759B253203DDCC3782D56 /* NoVerdinhoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCD51AF2E5C7DBE1BD164C6B /* NoVerdinhoApp.swift */; };
@@ -27,6 +28,7 @@
 		A7D68B637041FBBE2E746D05 /* CardViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34E329AF5472026EA1740AFF /* CardViews.swift */; };
 		AAA9B14008B22D9614CAB493 /* VerdinhoDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC19ECDAD395F6710401A177 /* VerdinhoDetailView.swift */; };
 		B11921CE5EDB4F96DF18A540 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = E906C55DC4D942AAC38F1F1F /* Components.swift */; };
+		B2F773B7D41EC0FCD9AF7AC4 /* CashFlowRadar.swift in Sources */ = {isa = PBXBuildFile; fileRef = C53B7B758385836E9EBB7E47 /* CashFlowRadar.swift */; };
 		C3DCF1AC556EA6D405EB3055 /* CloudSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C29419EFA118AF5B1F0484C /* CloudSync.swift */; };
 		D603E77AE56DA1B49EC750EF /* PurchaseSimulatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EAA8FCD5EEB292F1A3735B6 /* PurchaseSimulatorTests.swift */; };
 		DBB894396FFE5302836248D2 /* PayoffSimulatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24F38894CFAE5BFB0F7D05DF /* PayoffSimulatorTests.swift */; };
@@ -68,6 +70,8 @@
 		9AC475019653E113F4E4965E /* PayoffSimulator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PayoffSimulator.swift; sourceTree = "<group>"; };
 		AA068E5AE465CBD2E0B0C3A5 /* StatementImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatementImportView.swift; sourceTree = "<group>"; };
 		BEF52D8FE927817A9988A134 /* DashboardViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViews.swift; sourceTree = "<group>"; };
+		C53B7B758385836E9EBB7E47 /* CashFlowRadar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CashFlowRadar.swift; sourceTree = "<group>"; };
+		D16104DE4A8268419726BD96 /* CashFlowRadarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CashFlowRadarTests.swift; sourceTree = "<group>"; };
 		D650514DD2EEAF6B09D6EC43 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		DB060C30E76087677A4F6523 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		DC19ECDAD395F6710401A177 /* VerdinhoDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerdinhoDetailView.swift; sourceTree = "<group>"; };
@@ -82,6 +86,7 @@
 		2C6757F5DCB69C51B4F27C95 /* NoVerdinhoTests */ = {
 			isa = PBXGroup;
 			children = (
+				D16104DE4A8268419726BD96 /* CashFlowRadarTests.swift */,
 				2B4B5EB5FD0FABB32C98D578 /* CloudSyncTests.swift */,
 				24F38894CFAE5BFB0F7D05DF /* PayoffSimulatorTests.swift */,
 				3EAA8FCD5EEB292F1A3735B6 /* PurchaseSimulatorTests.swift */,
@@ -133,6 +138,7 @@
 		A37A8A0F91225C3B1B4501EF /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				C53B7B758385836E9EBB7E47 /* CashFlowRadar.swift */,
 				7C29419EFA118AF5B1F0484C /* CloudSync.swift */,
 				D650514DD2EEAF6B09D6EC43 /* Models.swift */,
 				9AC475019653E113F4E4965E /* PayoffSimulator.swift */,
@@ -274,6 +280,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				13B32E0483349B67073B348F /* CashFlowRadarTests.swift in Sources */,
 				FF95506F3D7B67E600D0464D /* CloudSyncTests.swift in Sources */,
 				DBB894396FFE5302836248D2 /* PayoffSimulatorTests.swift in Sources */,
 				D603E77AE56DA1B49EC750EF /* PurchaseSimulatorTests.swift in Sources */,
@@ -286,6 +293,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A7D68B637041FBBE2E746D05 /* CardViews.swift in Sources */,
+				B2F773B7D41EC0FCD9AF7AC4 /* CashFlowRadar.swift in Sources */,
 				C3DCF1AC556EA6D405EB3055 /* CloudSync.swift in Sources */,
 				B11921CE5EDB4F96DF18A540 /* Components.swift in Sources */,
 				21D89398904C25AA4FEDDB37 /* DashboardViews.swift in Sources */,
