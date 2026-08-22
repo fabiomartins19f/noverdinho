@@ -877,7 +877,8 @@ struct CloudSyncCard: View {
 
     private var canConnect: Bool {
         !app.syncServerURL.trimmingCharacters(in: .whitespaces).isEmpty &&
-        !app.syncPhone.trimmingCharacters(in: .whitespaces).isEmpty
+        !app.syncPhone.trimmingCharacters(in: .whitespaces).isEmpty &&
+        !app.syncToken.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
     var body: some View {
@@ -894,6 +895,9 @@ struct CloudSyncCard: View {
                           autocapitalization: .never, autocorrectionDisabled: true)
                 FormField("Seu telefone (ex: 5521999999999)", text: $app.syncPhone,
                           icon: "phone.fill", keyboard: .phonePad)
+                FormField("Token de acesso", text: $app.syncToken,
+                          icon: "key.fill", isSecure: true,
+                          autocapitalization: .never, autocorrectionDisabled: true)
 
                 if let resultMessage {
                     HStack(spacing: 6) {
@@ -917,7 +921,7 @@ struct CloudSyncCard: View {
                         showBankConnect = true
                     }
                     .sheet(isPresented: $showBankConnect) {
-                        BankConnectView(serverURL: app.syncServerURL, phone: app.syncPhone) {
+                        BankConnectView(serverURL: app.syncServerURL, phone: app.syncPhone, token: app.syncToken) {
                             Task { await sync() }
                         }
                         .environmentObject(app)

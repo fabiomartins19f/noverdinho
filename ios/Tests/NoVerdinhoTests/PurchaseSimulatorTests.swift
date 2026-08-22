@@ -86,6 +86,19 @@ final class PurchaseSimulatorTests: XCTestCase {
         XCTAssertTrue(result.goalImpacts.allSatisfy { $0.monthsAfter >= 0 })
     }
 
+    func testInstallmentIsDistributedAcrossGoalsProportionally() {
+        let twoGoals = [
+            Goal(id: UUID(), kind: .reserve, title: "Reserva", emoji: "banknote.fill",
+                 target: 12000, saved: 6000, monthlyContribution: 1000),
+            Goal(id: UUID(), kind: .reserve, title: "Viagem", emoji: "airplane",
+                 target: 6000, saved: 3000, monthlyContribution: 1000),
+        ]
+        // Parcela de 400 com 2 metas de aporte 1000 cada → 200 de impacto em cada.
+        let result = PurchaseSimulator.simulate(amount: 4000, installments: 10, input: input(goals: twoGoals))
+        XCTAssertEqual(result.goalImpacts.count, 2)
+        XCTAssertTrue(result.goalImpacts.allSatisfy { $0.paceAfterPurchase == 800 })
+    }
+
     // MARK: À vista
 
     func testCashPurchaseDoesNotTouchGoalsOrCommitments() {

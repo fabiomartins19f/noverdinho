@@ -6,6 +6,7 @@ import WebKit
 struct BankConnectView: View {
     let serverURL: String
     let phone: String
+    let token: String
     var onConnected: () -> Void = {}
 
     @Environment(\.dismiss) private var dismiss
@@ -40,7 +41,7 @@ struct BankConnectView: View {
         }
         .task {
             do {
-                connectToken = try await CloudSyncService.getConnectToken(serverURL: serverURL, phone: phone)
+                connectToken = try await CloudSyncService.getConnectToken(serverURL: serverURL, phone: phone, token: token)
             } catch {
                 self.error = error.localizedDescription
             }

@@ -7,8 +7,6 @@ struct CanISpendView: View {
     @State private var amount = ""
     @State private var result: CanISpendResult?
 
-    private var freeLimit: Double { 600 }
-
     var body: some View {
         ScreenScroll {
             VStack(alignment: .leading, spacing: 18) {
@@ -68,8 +66,8 @@ struct CanISpendView: View {
                                          value: Money.format(monthlyCommitments), color: Theme.warning)
                             IndicatorRow(icon: "banknote.fill", title: "Dívidas em aberto",
                                          value: Money.format(app.totalDebt), color: Theme.danger)
-                            IndicatorRow(icon: "target", title: "Limite de gasto livre",
-                                         value: Money.format(freeLimit), color: Theme.greenBright)
+                            IndicatorRow(icon: "banknote.fill", title: "Disponível para gastar",
+                                         value: app.balanceHidden ? "R$ ••••••" : Money.format(app.availableToSpend), color: Theme.greenBright)
                         }
                     }
                 }

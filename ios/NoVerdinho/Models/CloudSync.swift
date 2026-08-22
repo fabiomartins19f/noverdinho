@@ -64,17 +64,22 @@ struct CloudSyncService {
 
     struct RemoteTransaction: Decodable {
         let description: String
+        /// Com sinal: despesa negativa, receita positiva.
         let amount: Double
         let category: String?
         let source: String?
+        let kind: String?
         let date: String?
 
         func toIncoming() -> TransactionMerge.Incoming? {
             guard amount != 0 else { return nil }
             let parsedDate = date.flatMap { ISO8601DateFormatter().date(from: $0) } ?? Date()
             let src: Transaction.Source = source == "open_finance" ? .openFinance : .whatsapp
+            // Só `kind == "income"` vira receita; sem a coluna (servidor antigo)
+            // falha para DESPESA — o lado seguro, nunca o contrário.
+            let isIncome = kind == "income"
             return .init(name: description,
-                         amount: abs(amount),
+                         amount: isIncome ? abs(amount) : -abs(amount),
                          category: category ?? "Outros",
                          source: src,
                          date: parsedDate)
@@ -94,13 +99,16 @@ struct CloudSyncService {
     }
 
     /// Busca no backend todas as transações do telefone informado.
-    static func fetch(serverURL: String, phone: String) async throws -> [TransactionMerge.Incoming] {
+    static func fetch(serverURL: String, phone: String, token: String) async throws -> [TransactionMerge.Incoming] {
         guard var components = URLComponents(string: serverURL) else { throw SyncError.badURL }
         components.path = (components.path.hasSuffix("/") ? String(components.path.dropLast()) : components.path)
             + "/api/transactions/\(phone.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? phone)"
         guard let url = components.url else { throw SyncError.badURL }
 
-        let (data, response) = try await URLSession.shared.data(from: url)
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw SyncError.http(-1) }
         guard http.statusCode == 200 else { throw SyncError.http(http.statusCode) }
 
@@ -108,7 +116,7 @@ struct CloudSyncService {
     }
 
     /// Pede um connect_token ao backend para abrir o widget do Open Finance.
-    static func getConnectToken(serverURL: String, phone: String) async throws -> String {
+    static func getConnectToken(serverURL: String, phone: String, token: String) async throws -> String {
         guard var components = URLComponents(string: serverURL) else { throw SyncError.badURL }
         components.path = (components.path.hasSuffix("/") ? String(components.path.dropLast()) : components.path) + "/api/connect-token"
         guard let url = components.url else { throw SyncError.badURL }
@@ -116,6 +124,7 @@ struct CloudSyncService {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.httpBody = try JSONEncoder().encode(["phone": phone])
 
         let (data, response) = try await URLSession.shared.data(for: request)

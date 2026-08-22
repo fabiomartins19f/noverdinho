@@ -18,6 +18,31 @@ const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPE
 const WHATSAPP_VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN;
 const WHATSAPP_APP_SECRET = process.env.WHATSAPP_APP_SECRET;
 const PLUGGY_WEBHOOK_SECRET = process.env.PLUGGY_WEBHOOK_SECRET;
+const CLIENT_ACCESS_TOKEN = process.env.CLIENT_ACCESS_TOKEN;
+
+// Segredos não configurados NUNCA abrem o servidor em produção. Em dev,
+// exige-se ALLOW_INSECURE_DEV=true + NODE_ENV != production.
+const allowInsecureDev =
+  process.env.NODE_ENV !== 'production' && process.env.ALLOW_INSECURE_DEV === 'true';
+
+// ============================================================
+// Autenticação das rotas consumidas pelo app iOS
+// ============================================================
+// O telefone sozinho NÃO é credencial: exige-se um token compartilhado
+// (CLIENT_ACCESS_TOKEN) enviado como Authorization: Bearer.
+
+function requireClientAuth(req, res, next) {
+  if (!CLIENT_ACCESS_TOKEN) {
+    console.error('CLIENT_ACCESS_TOKEN não configurado — rotas do app recusadas.');
+    return res.status(500).send({ error: 'servidor mal configurado' });
+  }
+  const presented = (req.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+  const ok =
+    presented.length > 0 &&
+    crypto.timingSafeEqual(Buffer.from(presented), Buffer.from(CLIENT_ACCESS_TOKEN));
+  if (!ok) return res.status(401).send({ error: 'não autorizado' });
+  next();
+}
 
 // ============================================================
 // Utilitários
@@ -40,7 +65,7 @@ async function getOrCreateUser(phone) {
   return created.id;
 }
 
-async function insertTransaction({ userId, description, amount, category, source, date, externalId }) {
+async function insertTransaction({ userId, description, amount, category, source, date, externalId, kind = 'expense' }) {
   // Dedupe idempotente: webhooks podem reenviar o mesmo evento.
   if (externalId) {
     const { data: dup } = await supabase
@@ -54,6 +79,7 @@ async function insertTransaction({ userId, description, amount, category, source
     user_id: userId,
     description,
     amount: Math.abs(amount),
+    kind: kind === 'income' ? 'income' : 'expense',
     category: category || 'Geral',
     source,
     date: date || new Date().toISOString(),
@@ -64,7 +90,7 @@ async function insertTransaction({ userId, description, amount, category, source
 }
 
 function verifyMetaSignature(req) {
-  if (!WHATSAPP_APP_SECRET) return true; // dev sem verificação
+  if (!WHATSAPP_APP_SECRET) return allowInsecureDev;
   const signature = req.get('X-Hub-Signature-256') || '';
   const expected =
     'sha256=' + crypto.createHmac('sha256', WHATSAPP_APP_SECRET).update(req.rawBody).digest('hex');
@@ -76,8 +102,8 @@ function verifyMetaSignature(req) {
 }
 
 function verifyPluggySignature(req) {
+  if (!PLUGGY_WEBHOOK_SECRET) return allowInsecureDev;
   // Pluggy assina com HMAC-SHA256 do corpo usando o webhook secret.
-  if (!PLUGGY_WEBHOOK_SECRET) return true; // dev sem verificação
   const signature = req.get('x-pluggy-signature') || '';
   const expected = crypto.createHmac('sha256', PLUGGY_WEBHOOK_SECRET).update(req.rawBody).digest('hex');
   try {
@@ -85,6 +111,11 @@ function verifyPluggySignature(req) {
   } catch {
     return false;
   }
+}
+
+// O tipo da transação do Pluggy define a direção do dinheiro.
+function pluggyKind(tx) {
+  return tx?.type === 'CREDIT' ? 'income' : 'expense';
 }
 
 // ============================================================
@@ -118,6 +149,7 @@ app.post('/webhook/open-finance', async (req, res) => {
         userId: (account || {}).user_id || clientUserId,
         description: tx.description || 'Transação',
         amount: Math.abs(tx.amount ?? 0),
+        kind: pluggyKind(tx),
         category: tx.category?.replace(/_/g, ' ') || 'Open Finance',
         source: 'open_finance',
         date: tx.date,
@@ -162,6 +194,7 @@ async function syncAllTransactionsForItem(itemId, userId) {
           userId,
           description: tx.description || 'Transação',
           amount: Math.abs(tx.amount ?? 0),
+          kind: pluggyKind(tx),
           category: tx.category?.replace(/_/g, ' ') || 'Open Finance',
           source: 'open_finance',
           date: tx.date,
@@ -196,7 +229,7 @@ async function getPluggyApiKey() {
 // O app envia o TELEFONE; o servidor resolve o usuário e usa o id interno
 // como clientUserId — assim o ITEM_CREATED chega com clientUserId e sabemos
 // a quem vincular a conexão.
-app.post('/api/connect-token', async (req, res) => {
+app.post('/api/connect-token', requireClientAuth, async (req, res) => {
   try {
     const phone = String(req.body.phone || '').replace(/\D/g, '');
     if (!phone) return res.status(400).send({ error: 'phone obrigatório' });
@@ -310,6 +343,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
       userId,
       description: parsed.description || userText.slice(0, 80),
       amount: parsed.amount || 0,
+      kind: parsed.kind === 'income' ? 'income' : 'expense',
       category: parsed.category,
       source: 'whatsapp',
       date: new Date(parseInt(messageData.timestamp, 10) * 1000 || Date.now()).toISOString(),
@@ -343,7 +377,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
 // O app lê por aqui (com o telefone como identificador) — assim a anon key
 // do Supabase nunca precisa ficar no cliente e o RLS pode rester restrito.
 
-app.get('/api/transactions/:phone', async (req, res) => {
+app.get('/api/transactions/:phone', requireClientAuth, async (req, res) => {
   try {
     const phone = req.params.phone.replace(/\D/g, '');
     const { data: user } = await supabase
@@ -355,12 +389,13 @@ app.get('/api/transactions/:phone', async (req, res) => {
 
     const { data, error } = await supabase
       .from('transactions')
-      .select('description, amount, category, source, date')
+      .select('description, amount, kind, category, source, date')
       .eq('user_id', user.id)
       .order('date', { ascending: false })
       .limit(500);
     if (error) throw error;
-    res.json(data || []);
+    // amount com sinal: despesa negativa, receita positiva.
+    res.json((data || []).map((t) => ({ ...t, amount: t.kind === 'income' ? t.amount : -Math.abs(t.amount) })));
   } catch (error) {
     console.error('Erro ao listar transações:', error);
     res.status(500).send({ error: error.message });

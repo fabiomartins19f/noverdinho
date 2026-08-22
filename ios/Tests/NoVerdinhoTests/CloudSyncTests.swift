@@ -56,6 +56,33 @@ final class CloudSyncTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(plan.toImport.first).amount, 23.5, accuracy: 0.001)
     }
 
+    // Caminho real: JSON do servidor → RemoteTransaction → Incoming.
+    func testRemoteTransactionPreservesKindThroughTheRealPath() {
+        let json = """
+        [
+          {"description": "Almoço", "amount": -42.0, "kind": "expense", "category": "Alimentação", "source": "whatsapp", "date": "2026-08-01T12:00:00Z"},
+          {"description": "Salário", "amount": 5000.0, "kind": "income", "category": "Salário", "source": "open_finance", "date": "2026-08-01T12:00:00Z"}
+        ]
+        """.data(using: .utf8)!
+        let remote = try! JSONDecoder().decode([CloudSyncService.RemoteTransaction].self, from: json)
+        let incoming = remote.compactMap { $0.toIncoming() }
+        let plan = TransactionMerge.plan(existing: [], incoming: incoming)
+
+        XCTAssertEqual(plan.toImport.count, 2)
+        XCTAssertEqual(plan.toImport[0].kind, .expense, "despesa do WhatsApp não pode virar receita")
+        XCTAssertEqual(plan.toImport[1].kind, .income)
+    }
+
+    func testRemoteTransactionWithoutKindDefaultsToExpense() {
+        // Servidores antigos (sem coluna kind) ainda devem tratar como despesa.
+        let json = """
+        [{"description": "Mercado", "amount": 88.0, "category": "Alimentação", "source": "whatsapp", "date": null}]
+        """.data(using: .utf8)!
+        let remote = try! JSONDecoder().decode([CloudSyncService.RemoteTransaction].self, from: json)
+        let plan = TransactionMerge.plan(existing: [], incoming: remote.compactMap { $0.toIncoming() })
+        XCTAssertEqual(try XCTUnwrap(plan.toImport.first).kind, .expense)
+    }
+
     func testPositiveAmountBecomesIncomeWithSource() {
         let plan = TransactionMerge.plan(
             existing: [],

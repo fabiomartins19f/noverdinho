@@ -68,4 +68,19 @@ final class StatementParserTests: XCTestCase {
         let result = StatementParser.parse("12/08 NOTEBOOK DELL R$ 5.299,00")
         XCTAssertEqual(try XCTUnwrap(result.lines.first).amount, 5299.00, accuracy: 0.001)
     }
+
+    // MARK: Ano explícito na data
+
+    func testExplicitYearIsRespected() {
+        let result = StatementParser.parse("01/08/2024 IPHONE R$ 6.000,00")
+        let components = Calendar.current.dateComponents([.year, .month, .day], from: try! XCTUnwrap(result.lines.first?.date))
+        XCTAssertEqual(components.year, 2024)
+        XCTAssertEqual(components.month, 8)
+    }
+
+    func testTwoDigitYearExpandsToCurrentCentury() {
+        let result = StatementParser.parse("05/03/22 COMPRA R$ 10,00")
+        let year = Calendar.current.component(.year, from: try! XCTUnwrap(result.lines.first?.date))
+        XCTAssertEqual(year, 2022)
+    }
 }

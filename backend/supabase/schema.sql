@@ -24,6 +24,8 @@ create table if not exists transactions (
     user_id uuid references users(id) on delete cascade,
     description varchar(255) not null,
     amount decimal(12, 2) not null check (amount >= 0),
+    kind varchar(10) not null default 'expense'
+        check (kind in ('income', 'expense')),
     category varchar(50) default 'Geral',
     source varchar(20) not null default 'manual'
         check (source in ('whatsapp', 'open_finance', 'manual')),
@@ -34,6 +36,11 @@ create table if not exists transactions (
 
 create index if not exists idx_transactions_user_date on transactions (user_id, date desc);
 create index if not exists idx_transactions_external on transactions (external_id);
+
+-- Migração para bancos criados antes da coluna kind.
+alter table transactions
+    add column if not exists kind varchar(10) not null default 'expense'
+        check (kind in ('income', 'expense'));
 
 -- Realtime para o app/backend escutarem novidades
 alter publication supabase_realtime add table transactions;

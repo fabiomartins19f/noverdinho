@@ -73,20 +73,30 @@ enum PurchaseSimulator {
 
         var impacts: [GoalImpact] = []
         if financed {
-            for goal in input.goals where goal.monthlyContribution > 0 {
-                let remaining = max(goal.target - goal.saved, 0)
-                guard remaining > 0 else { continue }
-                let paceAfter = max(goal.monthlyContribution - monthly, 0)
-                let now = Int(ceil(remaining / goal.monthlyContribution))
-                let after = paceAfter > 0 ? Int(ceil(remaining / paceAfter)) : 0
-                if paceAfter != goal.monthlyContribution {
-                    impacts.append(.init(
-                        title: goal.title,
-                        currentPace: goal.monthlyContribution,
-                        paceAfterPurchase: paceAfter,
-                        monthsNow: now,
-                        monthsAfter: after
-                    ))
+            // A parcela sai do bolso comum dos aportes: distribui-se
+            // PROPORCIONALMENTE à contribuição de cada meta, em vez de
+            // subtrair o valor cheio de todas (que superestimaria o impacto).
+            let activeGoals = input.goals.filter {
+                $0.monthlyContribution > 0 && $0.target > $0.saved
+            }
+            let totalContribution = activeGoals.reduce(0.0) { $0 + $1.monthlyContribution }
+            if totalContribution > 0 {
+                for goal in activeGoals {
+                    let remaining = max(goal.target - goal.saved, 0)
+                    let share = goal.monthlyContribution / totalContribution
+                    let hit = monthly * share
+                    let paceAfter = max(goal.monthlyContribution - hit, 0)
+                    let now = Int(ceil(remaining / goal.monthlyContribution))
+                    let after = paceAfter > 0 ? Int(ceil(remaining / paceAfter)) : 0
+                    if paceAfter != goal.monthlyContribution {
+                        impacts.append(.init(
+                            title: goal.title,
+                            currentPace: goal.monthlyContribution,
+                            paceAfterPurchase: paceAfter,
+                            monthsNow: now,
+                            monthsAfter: after
+                        ))
+                    }
                 }
             }
         }

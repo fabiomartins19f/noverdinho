@@ -35,13 +35,28 @@ enum PayoffSimulator {
             months += 1
             var pool = payment
 
+            // 1) Juros incidem sobre o saldo inicial do mês, em todas as dívidas.
             for i in balances.indices where balances[i] > 0.01 {
                 let monthlyRate = debts[i].interestRate / 100 / 12
                 let accrued = balances[i] * monthlyRate
                 interest += accrued
                 balances[i] += accrued
+            }
 
-                if pool > 0.01 {
+            // 2) Pagam-se os MÍNIMOS de todas as dívidas (a parcela atual de
+            // cada uma), mantendo ninguém descoberto de juros.
+            if pool > 0.01 {
+                for i in balances.indices where balances[i] > 0.01 {
+                    let minimum = min(debts[i].installment, balances[i])
+                    balances[i] -= minimum
+                    pool -= minimum
+                }
+            }
+
+            // 3) Só o que sobrou segue a ordem de prioridade (avalanche/bola
+            // de neve) — "o aporte extra segue a ordem informada".
+            if pool > 0.01 {
+                for i in balances.indices where balances[i] > 0.01 && pool > 0.01 {
                     let paid = min(balances[i], pool)
                     balances[i] -= paid
                     pool -= paid

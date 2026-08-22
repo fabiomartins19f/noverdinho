@@ -15,8 +15,16 @@ final class CashFlowRadarTests: XCTestCase {
             Transaction(kind: .expense, name: "A", category: "Outros", amount: 300, date: day(-30)),
             Transaction(kind: .expense, name: "B", category: "Outros", amount: 300, date: day(-10)),
         ]
-        // 600 nos últimos 60 dias = 10/dia.
-        XCTAssertEqual(CashFlowRadar.variableDailyAverage(transactions: txs), 10, accuracy: 0.001)
+        // 600 no período observado (desde a despesa mais antiga, 30 dias) = 20/dia.
+        XCTAssertEqual(CashFlowRadar.variableDailyAverage(transactions: txs), 20, accuracy: 0.001)
+    }
+
+    func testVariableAverageUsesShortHistoryNotSixtyDays() {
+        // 300 gastos em 3 dias: média 100/dia, e não 5/dia como seria com /60.
+        let txs = [
+            Transaction(kind: .expense, name: "A", category: "Outros", amount: 300, date: day(-3)),
+        ]
+        XCTAssertEqual(CashFlowRadar.variableDailyAverage(transactions: txs), 100, accuracy: 0.001)
     }
 
     func testVariableAverageIgnoresOldTransactionsAndIncome() {

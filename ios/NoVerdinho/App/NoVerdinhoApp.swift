@@ -114,6 +114,7 @@ struct AddSheetContainer: View {
 @main
 struct NoVerdinhoApp: App {
     @StateObject private var app = AppState()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
@@ -141,6 +142,13 @@ struct NoVerdinhoApp: App {
             .appBackground()
             .environmentObject(app)
             .tint(Theme.green)
+            .onChange(of: scenePhase) { _, phase in
+                // Re-arma a trava sempre que o app vai para segundo plano —
+                // nunca entrega os dados financeiros desbloqueados.
+                if phase == .background && app.appLockEnabled && app.registered {
+                    app.isLocked = true
+                }
+            }
         }
     }
 }

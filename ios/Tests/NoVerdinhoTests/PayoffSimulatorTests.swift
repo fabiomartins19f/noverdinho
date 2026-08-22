@@ -70,6 +70,36 @@ final class PayoffSimulatorTests: XCTestCase {
         XCTAssertFalse(snowballWrong.neverPaysOff)
     }
 
+    // MARK: Mínimos de todas as dívidas
+
+    func testMinimumsArePaidOnAllDebtsBeforeExtraSpillover() {
+        let first = debt(remaining: 1000, rate: 0)
+        let second = Debt(type: .loan, creditor: "B", originalAmount: 1000, paidAmount: 0,
+                          remainingBalance: 1000, interestRate: 0, installment: 200,
+                          installmentCount: 12, paidInstallments: 0,
+                          dueDate: .now, priority: .low, status: .onTime)
+        // Aporta exatamente a soma das parcelas: os dois devem ceder suas
+        // parcelas no mês 1 — o segundo não fica "travado" esperando o primeiro.
+        let outcome = PayoffSimulator.simulate(debts: [first, second], payment: 100 + 200)
+        XCTAssertFalse(outcome.neverPaysOff)
+        // 2000 total, 300/mês → 7 meses (a segunda não fica travada atrás da primeira).
+        XCTAssertEqual(outcome.months, 7)
+    }
+
+    func testExtraFollowsPriorityAfterMinimums() {
+        let first = Debt(type: .creditCard, creditor: "Cara", originalAmount: 500, paidAmount: 0,
+                         remainingBalance: 500, interestRate: 0, installment: 100,
+                         installmentCount: 6, paidInstallments: 0,
+                         dueDate: .now, priority: .high, status: .onTime)
+        let second = Debt(type: .loan, creditor: "Barata", originalAmount: 1000, paidAmount: 0,
+                          remainingBalance: 1000, interestRate: 0, installment: 100,
+                          installmentCount: 12, paidInstallments: 0,
+                          dueDate: .now, priority: .low, status: .onTime)
+        // Pagamento grande: mínimos (200) + extra (300) vai todo pra primeira.
+        let outcome = PayoffSimulator.simulate(debts: [first, second], payment: 500)
+        XCTAssertEqual(outcome.months, 3) // 500/mês em 1500 total
+    }
+
     // MARK: Degenerados
 
     func testEmptyDebtsFinishesImmediately() {

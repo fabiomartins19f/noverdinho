@@ -55,9 +55,15 @@ Pluggy exigem HTTPS para webhooks.
 
 ## Segurança
 
+- **Rotas do app são autenticadas**: `GET /api/transactions/:phone` e
+  `/api/connect-token` exigem `Authorization: Bearer <CLIENT_ACCESS_TOKEN>`
+  (configurado no `.env`). Sem o token configurado, o servidor recusa a
+  resposta — o telefone sozinho nunca é credencial.
+- **Webhooks com assinatura obrigatória**: `X-Hub-Signature-256` (Meta) e
+  `x-pluggy-signature` (Pluggy) são verificados; sem os segredos no ambiente,
+  o servidor **fecha** (401) em produção. Desenvolvimento sem segredos exige
+  `ALLOW_INSECURE_DEV=true` explícito.
 - Todas as tabelas têm **RLS ligado sem políticas públicas**: a chave anon do
   Supabase não lê nada. Só este servidor (service role) acessa os dados.
-- Webhooks validam assinatura HMAC (`X-Hub-Signature-256` da Meta e
-  `x-pluggy-signature` do Pluggy) quando os segredos estão configurados.
 - Dedupe idempotente via `external_id` — reenvios de webhook não duplicam.
-- O app iOS nunca recebe segredos: só a URL pública deste servidor.
+- O app iOS nunca recebe segredos: só a URL pública e o token compartilhado.

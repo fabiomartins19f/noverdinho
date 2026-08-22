@@ -468,6 +468,8 @@ final class AppState: ObservableObject {
     /// Sync opcional com o backend próprio (WhatsApp + Open Finance).
     @Published var syncServerURL = "" { didSet { save() } }
     @Published var syncPhone = "" { didSet { save() } }
+    /// Token de acesso às rotas do backend (Authorization: Bearer).
+    @Published var syncToken = "" { didSet { save() } }
     /// Histórico mensal do nível (chave "yyyy-MM") — alimenta a evolução real.
     @Published var scoreHistory: [ScorePoint] = [] { didSet { save() } }
 
@@ -475,8 +477,9 @@ final class AppState: ObservableObject {
     @MainActor
     func syncFromCloud() async throws -> (imported: Int, duplicates: Int) {
         guard !syncServerURL.trimmingCharacters(in: .whitespaces).isEmpty,
-              !syncPhone.trimmingCharacters(in: .whitespaces).isEmpty else { return (0, 0) }
-        let incoming = try await CloudSyncService.fetch(serverURL: syncServerURL, phone: syncPhone)
+              !syncPhone.trimmingCharacters(in: .whitespaces).isEmpty,
+              !syncToken.trimmingCharacters(in: .whitespaces).isEmpty else { return (0, 0) }
+        let incoming = try await CloudSyncService.fetch(serverURL: syncServerURL, phone: syncPhone, token: syncToken)
         let mergePlan = TransactionMerge.plan(existing: transactions, incoming: incoming)
         guard !mergePlan.toImport.isEmpty else { return (0, mergePlan.duplicates) }
         transactions.append(contentsOf: mergePlan.toImport)
@@ -530,6 +533,18 @@ final class AppState: ObservableObject {
             .reduce(0.0) { $0 + $1.amount }
     }
 
+    /// Gasto do mês atual PROJETADO para o mês cheio: comparação justa com o
+    /// mês passado mesmo no dia 1, sem o efeito "pouco gasto ainda" que
+    /// distorce desafio e plano de 90 dias.
+    var currentMonthExpenseProjected: Double {
+        let cal = Calendar.current
+        let now = Date()
+        let dayOfMonth = cal.component(.day, from: now)
+        let daysInMonth = cal.range(of: .day, in: .month, for: now)?.count ?? 30
+        let elapsed = max(min(dayOfMonth, daysInMonth), 1)
+        return dayOfMonth <= 1 ? currentMonthExpense : currentMonthExpense / Double(elapsed) * Double(daysInMonth)
+    }
+
     var expensesByCategoryReal: [(name: String, value: Double)] {
         let start = Calendar.current.dateInterval(of: .month, for: .now)?.start ?? .now
         var grouped: [String: Double] = [:]
@@ -556,7 +571,7 @@ final class AppState: ObservableObject {
     var ninetyDayPlan: NinetyDayPlan.Plan {
         NinetyDayPlan.build(
             registeredDebtAndCards: debts.count + cards.count,
-            monthExpense: currentMonthExpense,
+            monthExpense: currentMonthExpenseProjected,
             lastMonthExpense: lastMonthExpense,
             availableToSpend: availableToSpend,
             monthlyCommitments: monthlyCommitments
@@ -566,7 +581,7 @@ final class AppState: ObservableObject {
     var monthlyChallenge: MonthlyChallenge.Challenge {
         MonthlyChallenge.build(
             lastMonthExpense: lastMonthExpense ?? 0,
-            currentMonthExpense: currentMonthExpense
+            currentMonthExpense: currentMonthExpenseProjected
         )
     }
 
@@ -667,6 +682,17 @@ final class AppState: ObservableObject {
         let newPaid = min(debt.paidAmount + amount, debt.originalAmount)
         let newBalance = max(debt.originalAmount - newPaid, 0)
         let isFull = newBalance <= 0.01
+
+        // Contabiliza as parcelas cobertas pelo pagamento: uma parcela por
+        // pagamento no mínimo, mas pagamentos maiores adiantam/quitaam várias.
+        var installmentsCovered = 0
+        if debt.installment > 0 {
+            installmentsCovered = max(Int((amount / debt.installment).rounded(.down)), 1)
+        } else {
+            installmentsCovered = 1
+        }
+        installmentsCovered = min(installmentsCovered, debt.installmentCount - debt.paidInstallments)
+
         let updated = Debt(
             id: debt.id,
             type: debt.type, creditor: debt.creditor,
@@ -674,7 +700,9 @@ final class AppState: ObservableObject {
             remainingBalance: isFull ? 0 : newBalance,
             interestRate: debt.interestRate, installment: debt.installment,
             installmentCount: debt.installmentCount,
-            paidInstallments: min(debt.paidInstallments + (amount >= debt.installment ? 1 : 0), debt.installmentCount),
+            paidInstallments: isFull
+                ? debt.installmentCount
+                : min(debt.paidInstallments + installmentsCovered, debt.installmentCount),
             dueDate: debt.dueDate, priority: debt.priority,
             status: isFull ? .paidOff : debt.status
         )
@@ -831,11 +859,33 @@ final class AppState: ObservableObject {
     }
 
     func canISpend(_ amount: Double) -> CanISpendResult {
-        switch amount {
-        case ..<600: .init(verdict: .ok, reason: "Você tem folga no orçamento e nenhum compromisso crítico nos próximos 30 dias.", icon: "checkmark.seal.fill")
-        case ..<1000: .init(verdict: .caution, reason: "Esse valor ultrapassa o limite recomendado de R$ 600 de gasto livre este mês. Avalie antes de gastar.", icon: "exclamationmark.triangle.fill")
-        default: .init(verdict: .notRecommended, reason: "Esse valor está muito acima do limite recomendado de R$ 600 e pode atrasar sua meta de quitação.", icon: "xmark.seal.fill")
+        guard amount > 0 else {
+            return .init(verdict: .ok, reason: "Informe um valor para analisar.", icon: "checkmark.seal.fill")
         }
+        let free = availableToSpend
+        let radar = cashFlowRadar
+
+        if amount <= free * 0.8, radar.firstNegativeDay == nil {
+            return .init(verdict: .ok,
+                         reason: "Depois dessa compra você ainda teria \(Money.format(max(free - amount, 0))) livres no mês.",
+                         icon: "checkmark.seal.fill")
+        }
+        if amount <= free {
+            let radarNote = radar.firstNegativeDay != nil
+                ? " Lembre que o radar já aponta saldo negativo em \(radar.firstNegativeDay!) dias."
+                : ""
+            return .init(verdict: .caution,
+                         reason: "Cabe no mês, mas reduz sua folga para \(Money.format(max(free - amount, 0))).\(radarNote)",
+                         icon: "exclamationmark.triangle.fill")
+        }
+        if amount <= balance {
+            return .init(verdict: .caution,
+                         reason: "Você tem o valor, mas os compromissos do mês somam \(Money.format(monthlyCommitments)). Gastar isso agora aperta o próximo ciclo.",
+                         icon: "exclamationmark.triangle.fill")
+        }
+        return .init(verdict: .notRecommended,
+                     reason: "Esse valor supera seu saldo atual de \(Money.format(balance)).",
+                     icon: "xmark.seal.fill")
     }
 
     // MARK: Persistência
@@ -856,6 +906,7 @@ final class AppState: ObservableObject {
         var appLockEnabled: Bool
         var syncServerURL: String
         var syncPhone: String
+        var syncToken: String
         var scoreHistory: [ScorePoint]
 
         init(onboarded: Bool, registered: Bool, userName: String, userEmail: String,
@@ -863,7 +914,7 @@ final class AppState: ObservableObject {
              cards: [CreditCard], goals: [Goal], budget: [BudgetCategory],
              notificationsEnabled: Bool,
              balanceHidden: Bool, appLockEnabled: Bool,
-             syncServerURL: String = "", syncPhone: String = "",
+             syncServerURL: String = "", syncPhone: String = "", syncToken: String = "",
              scoreHistory: [ScorePoint] = []) {
             self.onboarded = onboarded
             self.registered = registered
@@ -880,6 +931,7 @@ final class AppState: ObservableObject {
             self.appLockEnabled = appLockEnabled
             self.syncServerURL = syncServerURL
             self.syncPhone = syncPhone
+            self.syncToken = syncToken
             self.scoreHistory = scoreHistory
         }
 
@@ -900,6 +952,7 @@ final class AppState: ObservableObject {
             appLockEnabled = try c.decodeIfPresent(Bool.self, forKey: .appLockEnabled) ?? false
             syncServerURL = try c.decodeIfPresent(String.self, forKey: .syncServerURL) ?? ""
             syncPhone = try c.decodeIfPresent(String.self, forKey: .syncPhone) ?? ""
+            syncToken = try c.decodeIfPresent(String.self, forKey: .syncToken) ?? ""
             scoreHistory = try c.decodeIfPresent([ScorePoint].self, forKey: .scoreHistory) ?? []
         }
     }
@@ -922,6 +975,7 @@ final class AppState: ObservableObject {
         appLockEnabled = state.appLockEnabled
         syncServerURL = state.syncServerURL
         syncPhone = state.syncPhone
+        syncToken = state.syncToken
         scoreHistory = state.scoreHistory
     }
 
@@ -942,6 +996,7 @@ final class AppState: ObservableObject {
             appLockEnabled: appLockEnabled,
             syncServerURL: syncServerURL,
             syncPhone: syncPhone,
+            syncToken: syncToken,
             scoreHistory: scoreHistory
         )
         if let data = try? JSONEncoder().encode(state) {
@@ -963,6 +1018,7 @@ final class AppState: ObservableObject {
         isLocked = false
         syncServerURL = ""
         syncPhone = ""
+        syncToken = ""
         scoreHistory = []
         UserDefaults.standard.removeObject(forKey: Self.storageKey)
         onboarded = false

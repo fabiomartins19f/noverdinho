@@ -189,8 +189,6 @@ enum StatementParser {
 
         guard day > 0, (1...12).contains(month) else { return nil }
 
-        // Usa o ano corrente; datas futuras recuam para o ano anterior
-        // (o extrato pode trazer o ano seguinte).
         let calendar = Calendar.current
         var components = DateComponents()
         components.calendar = calendar
@@ -198,10 +196,19 @@ enum StatementParser {
         components.month = month
         components.hour = 12
 
+        // Ano explícito (grupo 3, ex.: "01/08/2024"): usa o informado.
+        // Sem ele, usa o ano corrente; datas futuras recuam para o anterior.
         let currentYear = calendar.component(.year, from: .now)
-        components.year = currentYear
+        var hadExplicitYear = false
+        if let rawYear = capture(in: line, match: match, group: 3), let year = Int(rawYear) {
+            components.year = year < 100 ? 2000 + year : year
+            hadExplicitYear = true
+        } else {
+            components.year = currentYear
+        }
+
         var date = calendar.date(from: components)
-        if let firstTry = date, firstTry > .now {
+        if !hadExplicitYear, let firstTry = date, firstTry > .now {
             components.year = currentYear - 1
             date = calendar.date(from: components) ?? firstTry
         }

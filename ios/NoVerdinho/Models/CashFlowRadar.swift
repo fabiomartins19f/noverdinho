@@ -29,14 +29,20 @@ enum CashFlowRadar {
 
     /// Média diária de gastos variáveis: despesas dos últimos 60 dias que não
     /// são compromissos fixos (parcelas/faturas são contadas à parte, nos
-    /// seus vencimentos).
+    /// seus vencimentos). Divide pelo período REAL de histórico — um usuário
+    /// com 3 dias de dados não é tratado como se tivesse 60.
     static func variableDailyAverage(transactions: [Transaction], now: Date = .now) -> Double {
         let calendar = Calendar.current
         guard let start = calendar.date(byAdding: .day, value: -60, to: now) else { return 0 }
         let recentExpenses = transactions.filter { $0.kind == .expense && $0.date >= start }
         guard !recentExpenses.isEmpty else { return 0 }
+
+        let oldest = recentExpenses.map(\.date).min() ?? now
+        let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: oldest), to: calendar.startOfDay(for: now)).day ?? 1
+        let span = max(min(days, 60), 1)
+
         let total = recentExpenses.reduce(0.0) { $0 + $1.amount }
-        return total / 60
+        return total / Double(span)
     }
 
     // MARK: Projeção
